@@ -9,6 +9,7 @@ import click
 from matterify import __version__
 from matterify.extractor import aggregate_frontmatter, export_json
 from matterify.logging import configure_debug_logging, get_console
+from matterify.scanner import BLACKLIST
 
 if TYPE_CHECKING:
     from rich.console import Console
@@ -41,17 +42,29 @@ def main(ctx: click.Context, debug: bool) -> None:
     help="Worker process count (default: 4).",
 )
 @click.option("--verbose", "-v", is_flag=True, help="Show progress and summary.")
+@click.option(
+    "--exclude",
+    "-e",
+    multiple=True,
+    help="Directories to exclude from scanning.",
+)
 @click.pass_context
 def scan(
-    ctx: click.Context, directory: Path, output: Path | None, n_procs: int, verbose: bool
+    ctx: click.Context,
+    directory: Path,
+    output: Path | None,
+    n_procs: int,
+    verbose: bool,
+    exclude: tuple[str, ...],
 ) -> None:
     """Scan a directory for Markdown files and extract frontmatter."""
     console: Console = get_console(verbose)
+    blacklist = exclude if exclude else BLACKLIST
 
     if verbose:
         console.print(f"Scanning: {directory}")
 
-    result = aggregate_frontmatter(directory, n_procs=n_procs)
+    result = aggregate_frontmatter(directory, n_procs=n_procs, blacklist=blacklist)
 
     if output:
         result_path = export_json(result, output)
@@ -103,7 +116,22 @@ def scan(
     help="Worker process count (default: 4).",
 )
 @click.option("--verbose", "-v", is_flag=True, help="Show progress and summary.")
+@click.option(
+    "--exclude",
+    "-e",
+    multiple=True,
+    help="Directories to exclude from scanning.",
+)
 @click.pass_context
-def export(ctx: click.Context, directory: Path, output: Path, n_procs: int, verbose: bool) -> None:
+def export(
+    ctx: click.Context,
+    directory: Path,
+    output: Path,
+    n_procs: int,
+    verbose: bool,
+    exclude: tuple[str, ...],
+) -> None:
     """Export aggregated frontmatter to a JSON file."""
-    ctx.invoke(scan, directory=directory, output=output, n_procs=n_procs, verbose=verbose)
+    ctx.invoke(
+        scan, directory=directory, output=output, n_procs=n_procs, verbose=verbose, exclude=exclude
+    )

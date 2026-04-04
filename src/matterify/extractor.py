@@ -142,20 +142,24 @@ def _worker_extract(root_str: str, file_str: str) -> FrontmatterEntry:
 def aggregate_frontmatter(
     directory: Path,
     n_procs: int = 4,
+    blacklist: tuple[str, ...] | None = None,
 ) -> AggregatedResult:
     """Scan directory and aggregate frontmatter using concurrent workers.
 
     Args:
         directory: Root directory to scan.
         n_procs: Worker process count (capped at file count).
+        blacklist: Directory names to exclude from traversal.
 
     Returns:
         AggregatedResult with metadata and file entries.
     """
-    from matterify.scanner import iter_markdown_files
+    from matterify.scanner import BLACKLIST, iter_markdown_files
+
+    effective_blacklist = blacklist if blacklist is not None else BLACKLIST
 
     start_time = time.perf_counter()
-    file_paths = list(iter_markdown_files(directory))
+    file_paths = list(iter_markdown_files(directory, blacklist=effective_blacklist))
     total_files = len(file_paths)
 
     if total_files == 0:

@@ -30,15 +30,22 @@ pip install matterify
 matterify DIRECTORY [OPTIONS]
 ```
 
+`DIRECTORY` must exist and is scanned recursively for `.md` and `.markdown` files.
+
 **Options:**
+- `--version` - Show version information and exit
+- `--debug` - Enable debug logging
 - `-o, --output PATH` - Write JSON to file instead of stdout (if omitted, outputs to stdout)
 - `--n-procs INT` - Worker process count (default: auto-detect CPU cores)
 - `-v, --verbose` - Show progress and summary
 - `-e, --exclude TEXT` - Additional directories to exclude
 - `--hash / --no-hash` - Enable/disable SHA-256 hash computation
 - `--stats / --no-stats` - Enable/disable file statistics (size, modified time, access time)
-- `--debug` - Enable debug logging
-- `--version` - Show version information and exit
+- `--frontmatter / --no-frontmatter` - Enable/disable YAML frontmatter extraction
+- `--help` - Show command help and exit
+
+When `--no-frontmatter` is used, metadata fields `files_with_frontmatter` and
+`files_without_frontmatter` are `null`.
 
 **Examples:**
 
@@ -55,8 +62,14 @@ matterify ./docs --verbose
 # Disable hashes and file stats
 matterify ./docs --no-hash --no-stats
 
+# Hash + stats only (skip YAML parsing)
+matterify ./docs --no-frontmatter
+
 # Exclude additional directories
 matterify ./docs -e build -e .cache
+
+# Full help
+matterify --help
 ```
 
 ## Python API

@@ -1,6 +1,6 @@
 [project]
 name = "matterify"
-version = "0.1.0"
+version = "0.2.1"
 description = "Extract and aggregate YAML frontmatter from Markdown files into structured JSON"
 readme = "README.md"
 keywords = ["markdown", "frontmatter", "yaml", "json", "cli", "metadata", "static-site"]

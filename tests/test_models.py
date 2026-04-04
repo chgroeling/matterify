@@ -107,6 +107,8 @@ class TestScanMetadata:
         except AttributeError:
             pass
 
+
+class TestAggregatedResult:
     """Tests for AggregatedResult dataclass."""
 
     def test_create_result(self) -> None:
@@ -131,7 +133,7 @@ class TestScanMetadata:
         assert len(result.files) == 1
         assert result.files[0].status == "ok"
 
-    def test_immutability(self) -> None:
+    def test_aggregated_result_immutability(self) -> None:
         metadata = ScanMetadata(
             source_directory="/path",
             total_files=0,

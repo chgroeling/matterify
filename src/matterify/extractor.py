@@ -1,6 +1,5 @@
 """Frontmatter extraction and aggregation logic."""
 
-import json
 import os
 import time
 from concurrent.futures import ProcessPoolExecutor, as_completed
@@ -292,46 +291,3 @@ def aggregate_frontmatter(
             for entry in result.files
         ],
     }
-
-
-def export_json(
-    result: AggregatedResult,
-    output: Path,
-) -> Path:
-    """Serialize AggregatedResult to JSON file.
-
-    Args:
-        result: Aggregated result to serialize.
-        output: Destination path for the JSON output file.
-
-    Returns:
-        Path to the written file.
-    """
-    data = {
-        "metadata": {
-            "source_directory": result.metadata.source_directory,
-            "total_files": result.metadata.total_files,
-            "files_with_frontmatter": result.metadata.files_with_frontmatter,
-            "files_without_frontmatter": result.metadata.files_without_frontmatter,
-            "errors": result.metadata.errors,
-            "scan_duration_seconds": result.metadata.scan_duration_seconds,
-            "avg_duration_per_file_ms": result.metadata.avg_duration_per_file_ms,
-            "throughput_files_per_second": result.metadata.throughput_files_per_second,
-        },
-        "files": [
-            {
-                "file_path": entry.file_path,
-                "frontmatter": entry.frontmatter,
-                "status": entry.status,
-                "error": entry.error,
-                "file_size": entry.file_size,
-                "modified_time": entry.modified_time,
-                "access_time": entry.access_time,
-            }
-            for entry in result.files
-        ],
-    }
-    json_content = json.dumps(data, indent=2, ensure_ascii=False)
-    output.write_text(json_content, encoding="utf-8")
-    logger.info("json_exported", output=str(output))
-    return output

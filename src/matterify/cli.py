@@ -8,7 +8,7 @@ import click
 from structlog import get_logger
 
 from matterify import __version__
-from matterify.extractor import _aggregate_dataclass, export_json
+from matterify.extractor import aggregate_frontmatter
 from matterify.logging import configure_debug_logging, get_console
 from matterify.scanner import BLACKLIST
 
@@ -72,37 +72,19 @@ def main(
     if verbose:
         console.print(f"Scanning: {directory}")
 
-    result = _aggregate_dataclass(directory, n_procs=n_procs, blacklist=blacklist)
+    result: dict[str, object] = aggregate_frontmatter(
+        directory, n_procs=n_procs, blacklist=blacklist
+    )
 
     if output:
-        result_path = export_json(result, output)
+        output.write_text(_json.dumps(result, indent=2, ensure_ascii=False), encoding="utf-8")
         if verbose:
-            console.print(f"Exported to: {result_path}")
-            m = result.metadata
-            console.print(f"Total files: {m.total_files}")
-            console.print(f"With frontmatter: {m.files_with_frontmatter}")
-            console.print(f"Without frontmatter: {m.files_without_frontmatter}")
-            console.print(f"Errors: {m.errors}")
-            console.print(f"Duration: {m.scan_duration_seconds}s")
+            console.print(f"Exported to: {output}")
+            m: dict[str, int | float] = result["metadata"]  # type: ignore[assignment]
+            console.print(f"Total files: {m['total_files']}")
+            console.print(f"With frontmatter: {m['files_with_frontmatter']}")
+            console.print(f"Without frontmatter: {m['files_without_frontmatter']}")
+            console.print(f"Errors: {m['errors']}")
+            console.print(f"Duration: {m['scan_duration_seconds']}s")
     else:
-        data = {
-            "metadata": {
-                "source_directory": result.metadata.source_directory,
-                "total_files": result.metadata.total_files,
-                "files_with_frontmatter": result.metadata.files_with_frontmatter,
-                "files_without_frontmatter": result.metadata.files_without_frontmatter,
-                "errors": result.metadata.errors,
-                "scan_duration_seconds": result.metadata.scan_duration_seconds,
-                "avg_duration_per_file_ms": result.metadata.avg_duration_per_file_ms,
-            },
-            "files": [
-                {
-                    "file_path": entry.file_path,
-                    "frontmatter": entry.frontmatter,
-                    "status": entry.status,
-                    "error": entry.error,
-                }
-                for entry in result.files
-            ],
-        }
-        click.echo(_json.dumps(data, indent=2))
+        click.echo(_json.dumps(result, indent=2))

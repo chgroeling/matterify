@@ -102,7 +102,6 @@ matterify/
 ### Public Functions
 - `extract_frontmatter(file_path: Path) -> FrontmatterEntry`: Extract YAML frontmatter from a single Markdown file.
 - `aggregate_frontmatter(directory: Path, n_procs: int = 4, blacklist: tuple[str, ...] | None = None) -> dict[str, object]`: Scan directory and aggregate frontmatter using parallel workers. Returns a dictionary with `metadata` and `files` keys.
-- `export_json(result: AggregatedResult, output: Path) -> Path`: Serialize aggregated result to JSON file.
 - `iter_markdown_files(root: Path, blacklist: tuple[str, ...] = BLACKLIST) -> Iterable[Path]`: Yield Markdown files in directory.
 - `_aggregate_dataclass(...) -> AggregatedResult`: Internal API returning dataclass (used by CLI).
 
@@ -118,6 +117,7 @@ The dictionary returned by `aggregate_frontmatter()` has the following structure
         "errors": int,
         "scan_duration_seconds": float,
         "avg_duration_per_file_ms": float,
+        "throughput_files_per_second": float,
     },
     "files": [
         {

@@ -6,7 +6,6 @@ from matterify.extractor import (
     DEFAULT_N_PROCS,
     _aggregate_dataclass,
     aggregate_frontmatter,
-    export_json,
     extract_frontmatter,
 )
 from matterify.models import AggregatedResult, FrontmatterEntry, ScanMetadata
@@ -21,7 +20,6 @@ __all__ = [
     "__version__",
     "_aggregate_dataclass",
     "aggregate_frontmatter",
-    "export_json",
     "extract_frontmatter",
     "iter_markdown_files",
 ]

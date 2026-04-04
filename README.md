@@ -57,7 +57,6 @@ from pathlib import Path
 from matterify import (
     extract_frontmatter,
     aggregate_frontmatter,
-    export_json,
     iter_markdown_files,
 )
 ```
@@ -96,6 +95,7 @@ result = aggregate_frontmatter(Path("./docs"))
 #         "errors": int,
 #         "scan_duration_seconds": float,
 #         "avg_duration_per_file_ms": float,
+#         "throughput_files_per_second": float,
 #     },
 #     "files": [
 #         {
@@ -103,23 +103,17 @@ result = aggregate_frontmatter(Path("./docs"))
 #             "frontmatter": dict | None,
 #             "status": str,
 #             "error": str | None,
+#             "file_size": int | None,
+#             "modified_time": str | None,
+#             "access_time": str | None,
 #         },
 #         ...
 #     ]
 # }
-```
 
-#### export_json
-
-Serialize aggregated result to JSON file.
-
-```python
-from pathlib import Path
-from matterify import _aggregate_dataclass, export_json
-
-result = _aggregate_dataclass(Path("./docs"))
-output_path = export_json(result, Path("output.json"))
-print(output_path)  # Path to the written JSON file
+# Output to JSON file
+import json
+Path("output.json").write_text(json.dumps(result, indent=2))
 ```
 
 #### iter_markdown_files
@@ -175,7 +169,8 @@ When using CLI with `--output` or calling `aggregate_frontmatter()`:
     "files_without_frontmatter": 2,
     "errors": 0,
     "scan_duration_seconds": 0.523,
-    "avg_duration_per_file_ms": 52.3
+    "avg_duration_per_file_ms": 52.3,
+    "throughput_files_per_second": 19.1
   },
   "files": [
     {
@@ -186,7 +181,10 @@ When using CLI with `--output` or calling `aggregate_frontmatter()`:
         "tags": ["guide", "tutorial"]
       },
       "status": "ok",
-      "error": null
+      "error": null,
+      "file_size": 1234,
+      "modified_time": "2024-01-15T10:30:00",
+      "access_time": "2024-01-15T10:30:00"
     }
   ]
 }

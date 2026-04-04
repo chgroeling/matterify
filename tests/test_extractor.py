@@ -1,12 +1,9 @@
 """Tests for the extractor module."""
 
-import json
 from pathlib import Path
 
 from matterify.extractor import (
-    _aggregate_dataclass,
     aggregate_frontmatter,
-    export_json,
     extract_frontmatter,
 )
 from matterify.models import FrontmatterEntry
@@ -222,84 +219,3 @@ class TestAggregateFrontmatter:
         result = aggregate_frontmatter(sample_project)
         assert result["metadata"]["scan_duration_seconds"] >= 0
         assert result["metadata"]["avg_duration_per_file_ms"] >= 0
-
-
-class TestExportJson:
-    """Tests for export_json."""
-
-    def test_export_creates_json_file(self, sample_project: Path, tmp_path: Path) -> None:
-        result = _aggregate_dataclass(sample_project)
-        output = tmp_path / "output.json"
-        result_path = export_json(result, output)
-        assert result_path == output
-        assert output.exists()
-
-    def test_export_valid_json(self, sample_project: Path, tmp_path: Path) -> None:
-        result = _aggregate_dataclass(sample_project)
-        output = tmp_path / "output.json"
-        export_json(result, output)
-        content = output.read_text(encoding="utf-8")
-        data = json.loads(content)
-        assert "metadata" in data
-        assert "files" in data
-
-    def test_export_metadata_fields(self, sample_project: Path, tmp_path: Path) -> None:
-        result = _aggregate_dataclass(sample_project)
-        output = tmp_path / "output.json"
-        export_json(result, output)
-        content = output.read_text(encoding="utf-8")
-        data = json.loads(content)
-        meta = data["metadata"]
-        assert "source_directory" in meta
-        assert "total_files" in meta
-        assert "files_with_frontmatter" in meta
-        assert "files_without_frontmatter" in meta
-        assert "errors" in meta
-        assert "scan_duration_seconds" in meta
-        assert "avg_duration_per_file_ms" in meta
-
-    def test_export_file_entry_fields(self, sample_project: Path, tmp_path: Path) -> None:
-        result = _aggregate_dataclass(sample_project)
-        output = tmp_path / "output.json"
-        export_json(result, output)
-        content = output.read_text(encoding="utf-8")
-        data = json.loads(content)
-        assert len(data["files"]) == 2
-        for entry in data["files"]:
-            assert "file_path" in entry
-            assert "frontmatter" in entry
-            assert "status" in entry
-            assert "error" in entry
-            assert "file_size" in entry
-            assert "modified_time" in entry
-            assert "access_time" in entry
-
-    def test_export_content_matches_aggregate(
-        self,
-        sample_project: Path,
-        tmp_path: Path,
-    ) -> None:
-        result = _aggregate_dataclass(sample_project)
-        output = tmp_path / "output.json"
-        export_json(result, output)
-        content = output.read_text(encoding="utf-8")
-        exported = json.loads(content)
-        assert exported["metadata"]["total_files"] == result.metadata.total_files
-        assert (
-            exported["metadata"]["files_with_frontmatter"] == result.metadata.files_with_frontmatter
-        )
-
-    def test_export_json_with_datetime_serialized(self, tmp_path: Path) -> None:
-        project = tmp_path / "project"
-        project.mkdir()
-        (project / "doc.md").write_text(
-            "---\ntitle: Doc\ndate: 2024-03-15\ndatetime: 2024-03-15T10:30:00\n---\nContent",
-            encoding="utf-8",
-        )
-        result = _aggregate_dataclass(project)
-        output = tmp_path / "output.json"
-        export_json(result, output)
-        content = output.read_text(encoding="utf-8")
-        data = json.loads(content)
-        assert data["files"][0]["frontmatter"]["date"] == "2024-03-15"
-        assert data["files"][0]["frontmatter"]["datetime"] == "2024-03-15T10:30:00"

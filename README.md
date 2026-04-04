@@ -34,6 +34,8 @@ matterify DIRECTORY [OPTIONS]
 - `-n-procs INT` - Worker process count (default: auto-detect CPU cores)
 - `-v, --verbose` - Show progress and summary
 - `-e, --exclude TEXT` - Additional directories to exclude
+- `--no-hash` - Disable SHA-256 hash computation
+- `--no-stats` - Disable file statistics (size, modified time, access time)
 
 **Examples:**
 
@@ -156,9 +158,13 @@ When using CLI with `--output`:
       },
       "status": "ok",
       "error": null,
-      "file_size": 1234,
-      "modified_time": "2024-01-15T10:30:00",
-      "access_time": "2024-01-15T10:30:00"
+            "file_size": 1234,
+            "modified_time": "2024-01-15T10:30:00",
+            "access_time": "2024-01-15T10:30:00",
+            "file_hash": "abc123..."
+          }
+        ]
+      }
     }
   ]
 }

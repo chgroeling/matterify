@@ -153,7 +153,9 @@ class TestWorkerExtract:
     def test_worker_returns_complete_entry(self, tmp_path: Path) -> None:
         file_path = tmp_path / "test.md"
         file_path.write_text("---\ntitle: Test\n---\nContent", encoding="utf-8")
-        result = _worker_extract(str(tmp_path), str(file_path), compute_hash=True)
+        result = _worker_extract(
+            str(tmp_path), str(file_path), compute_hash=True, compute_stats=True
+        )
         assert isinstance(result, FileEntry)
         assert result.file_size is not None
         assert result.modified_time is not None
@@ -163,12 +165,24 @@ class TestWorkerExtract:
     def test_worker_hash_disabled(self, tmp_path: Path) -> None:
         file_path = tmp_path / "test.md"
         file_path.write_text("---\ntitle: Test\n---\nContent", encoding="utf-8")
-        result = _worker_extract(str(tmp_path), str(file_path), compute_hash=False)
+        result = _worker_extract(
+            str(tmp_path), str(file_path), compute_hash=False, compute_stats=True
+        )
         assert result.file_hash is None
+
+    def test_worker_stats_disabled(self, tmp_path: Path) -> None:
+        file_path = tmp_path / "test.md"
+        file_path.write_text("---\ntitle: Test\n---\nContent", encoding="utf-8")
+        result = _worker_extract(
+            str(tmp_path), str(file_path), compute_hash=False, compute_stats=False
+        )
+        assert result.file_size is None
+        assert result.modified_time is None
+        assert result.access_time is None
 
     def test_worker_handles_missing_file(self, tmp_path: Path) -> None:
         result = _worker_extract(
-            str(tmp_path), str(tmp_path / "nonexistent.md"), compute_hash=False
+            str(tmp_path), str(tmp_path / "nonexistent.md"), compute_hash=False, compute_stats=False
         )
         assert result.status == "illegal"
         assert result.error is not None
@@ -252,7 +266,7 @@ class TestScanDirectory:
         project = tmp_path / "project"
         project.mkdir()
         (project / "test.md").write_text("---\ntitle: Test\n---\nContent", encoding="utf-8")
-        result = scan_directory(project)
+        result = scan_directory(project, compute_hash=False)
         assert result.files[0].file_hash is None
 
     def test_aggregate_computes_hash_when_enabled(self, tmp_path: Path) -> None:
@@ -271,3 +285,12 @@ class TestScanDirectory:
         assert result.files[0].file_size is not None
         assert result.files[0].modified_time is not None
         assert result.files[0].access_time is not None
+
+    def test_aggregate_file_stats_disabled(self, tmp_path: Path) -> None:
+        project = tmp_path / "project"
+        project.mkdir()
+        (project / "test.md").write_text("---\ntitle: Test\n---\nContent", encoding="utf-8")
+        result = scan_directory(project, compute_stats=False)
+        assert result.files[0].file_size is None
+        assert result.files[0].modified_time is None
+        assert result.files[0].access_time is None

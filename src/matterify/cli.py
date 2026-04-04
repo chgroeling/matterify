@@ -43,12 +43,20 @@ logger = get_logger(__name__)
     help="Directories to exclude from scanning.",
 )
 @click.option(
-    "--hash",
-    "-H",
+    "--no-hash",
     "compute_hash",
     is_flag=True,
-    default=False,
-    help="Compute SHA-256 hash for each file.",
+    flag_value=False,
+    default=True,
+    help="Disable SHA-256 hash computation.",
+)
+@click.option(
+    "--no-stats",
+    "compute_stats",
+    is_flag=True,
+    flag_value=False,
+    default=True,
+    help="Disable file statistics (size, modified time, access time).",
 )
 @click.pass_context
 def main(
@@ -60,6 +68,7 @@ def main(
     verbose: bool,
     exclude: tuple[str, ...],
     compute_hash: bool,
+    compute_stats: bool,
 ) -> None:
     """Matterify - Extract YAML frontmatter from Markdown files."""
     ctx.ensure_object(dict)
@@ -74,6 +83,7 @@ def main(
         verbose=verbose,
         exclude=list(exclude) if exclude else [],
         compute_hash=compute_hash,
+        compute_stats=compute_stats,
     )
 
     console: Console = get_console(verbose)
@@ -90,6 +100,7 @@ def main(
         n_procs=effective_n_procs,
         blacklist=blacklist,
         compute_hash=compute_hash,
+        compute_stats=compute_stats,
     )
 
     result_dict = {

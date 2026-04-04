@@ -143,7 +143,12 @@ def _compute_file_hash(content: bytes) -> str | None:
         return None
 
 
-def _worker_extract(root_str: str, file_str: str, compute_hash: bool) -> FileEntry:
+def _worker_extract(
+    root_str: str,
+    file_str: str,
+    compute_hash: bool,
+    compute_stats: bool,
+) -> FileEntry:
     """Worker function for ProcessPoolExecutor.
 
     Reads the file once and computes stats, and optionally hash.
@@ -152,6 +157,7 @@ def _worker_extract(root_str: str, file_str: str, compute_hash: bool) -> FileEnt
         root_str: Root directory as string (unused, kept for future extension).
         file_str: Absolute file path as string.
         compute_hash: Whether to compute SHA-256 hash.
+        compute_stats: Whether to compute file statistics.
 
     Returns:
         Fully populated FileEntry for the given file.
@@ -169,7 +175,11 @@ def _worker_extract(root_str: str, file_str: str, compute_hash: bool) -> FileEnt
 
     content = raw_bytes.decode("utf-8")
     entry = _extract_frontmatter_from_content(content, str(file_path))
-    stats = _get_file_stats(file_path)
+    stats = (
+        _get_file_stats(file_path)
+        if compute_stats
+        else {"file_size": None, "modified_time": None, "access_time": None}
+    )
     file_hash = _compute_file_hash(raw_bytes) if compute_hash else None
 
     return FileEntry(
@@ -188,7 +198,8 @@ def scan_directory(
     directory: Path,
     n_procs: int | None = None,
     blacklist: tuple[str, ...] | None = None,
-    compute_hash: bool = False,
+    compute_hash: bool = True,
+    compute_stats: bool = True,
 ) -> AggregatedResult:
     """Scan directory and aggregate frontmatter using concurrent workers.
 
@@ -196,7 +207,8 @@ def scan_directory(
         directory: Root directory to scan.
         n_procs: Worker process count (default: auto-detect CPU cores, capped at file count).
         blacklist: Directory names to exclude from traversal.
-        compute_hash: Whether to compute SHA-256 hash for each file (default: False).
+        compute_hash: Whether to compute SHA-256 hash for each file (default: True).
+        compute_stats: Whether to compute file stats (size, mtime, atime) (default: True).
 
     Returns:
         AggregatedResult with metadata and file entries.
@@ -253,7 +265,9 @@ def scan_directory(
 
     with ProcessPoolExecutor(max_workers=max_workers) as executor:
         future_to_path = {
-            executor.submit(_worker_extract, str(directory), str(fp), compute_hash): fp
+            executor.submit(
+                _worker_extract, str(directory), str(fp), compute_hash, compute_stats
+            ): fp
             for fp in file_paths
         }
         for future in as_completed(future_to_path):

@@ -1,6 +1,7 @@
 """Frontmatter extraction and aggregation logic."""
 
 import json
+import os
 import time
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from datetime import date, datetime
@@ -13,6 +14,8 @@ from structlog import get_logger
 from matterify.models import AggregatedResult, FrontmatterEntry, ScanMetadata
 
 logger = get_logger(__name__)
+
+DEFAULT_N_PROCS = 1
 
 
 def _serialize_datetime(
@@ -141,14 +144,14 @@ def _worker_extract(root_str: str, file_str: str) -> FrontmatterEntry:
 
 def _aggregate_dataclass(
     directory: Path,
-    n_procs: int = 4,
+    n_procs: int | None = None,
     blacklist: tuple[str, ...] | None = None,
 ) -> AggregatedResult:
     """Scan directory and aggregate frontmatter using concurrent workers.
 
     Args:
         directory: Root directory to scan.
-        n_procs: Worker process count (capped at file count).
+        n_procs: Worker process count (default: auto-detect CPU cores, capped at file count).
         blacklist: Directory names to exclude from traversal.
 
     Returns:
@@ -157,6 +160,7 @@ def _aggregate_dataclass(
     from matterify.scanner import BLACKLIST, iter_markdown_files
 
     effective_blacklist = blacklist if blacklist is not None else BLACKLIST
+    effective_n_procs = os.cpu_count() or DEFAULT_N_PROCS
 
     start_time = time.perf_counter()
     file_paths = list(iter_markdown_files(directory, blacklist=effective_blacklist))
@@ -175,7 +179,7 @@ def _aggregate_dataclass(
         )
         return AggregatedResult(metadata=metadata, files=[])
 
-    max_workers = min(total_files, n_procs)
+    max_workers = min(total_files, effective_n_procs)
     results: list[FrontmatterEntry] = []
 
     with ProcessPoolExecutor(max_workers=max_workers) as executor:
@@ -227,6 +231,7 @@ def _aggregate_dataclass(
         with_frontmatter=files_with_fm,
         errors=errors,
         duration=round(duration, 3),
+        n_procs=effective_n_procs,
     )
 
     return AggregatedResult(metadata=metadata, files=results)
@@ -234,14 +239,14 @@ def _aggregate_dataclass(
 
 def aggregate_frontmatter(
     directory: Path,
-    n_procs: int = 4,
+    n_procs: int | None = None,
     blacklist: tuple[str, ...] | None = None,
 ) -> dict[str, object]:
     """Scan directory and aggregate frontmatter, returning a dictionary.
 
     Args:
         directory: Root directory to scan.
-        n_procs: Worker process count (capped at file count).
+        n_procs: Worker process count (default: auto-detect CPU cores, capped at file count).
         blacklist: Directory names to exclude from traversal.
 
     Returns:

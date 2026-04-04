@@ -38,8 +38,8 @@ def main(ctx: click.Context, debug: bool) -> None:
 @click.option(
     "--n-procs",
     type=int,
-    default=4,
-    help="Worker process count (default: 4).",
+    default=None,
+    help="Worker process count (default: auto-detect CPU cores).",
 )
 @click.option("--verbose", "-v", is_flag=True, help="Show progress and summary.")
 @click.option(
@@ -53,7 +53,7 @@ def scan(
     ctx: click.Context,
     directory: Path,
     output: Path | None,
-    n_procs: int,
+    n_procs: int | None,
     verbose: bool,
     exclude: tuple[str, ...],
 ) -> None:
@@ -112,8 +112,8 @@ def scan(
 @click.option(
     "--n-procs",
     type=int,
-    default=4,
-    help="Worker process count (default: 4).",
+    default=None,
+    help="Worker process count (default: auto-detect CPU cores).",
 )
 @click.option("--verbose", "-v", is_flag=True, help="Show progress and summary.")
 @click.option(
@@ -127,7 +127,7 @@ def export(
     ctx: click.Context,
     directory: Path,
     output: Path,
-    n_procs: int,
+    n_procs: int | None,
     verbose: bool,
     exclude: tuple[str, ...],
 ) -> None:

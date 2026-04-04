@@ -19,57 +19,62 @@ class TestExtractFrontmatterFromContent:
         sample_md_with_frontmatter: Path,
     ) -> None:
         content = sample_md_with_frontmatter.read_text(encoding="utf-8")
-        result = _extract_frontmatter_from_content(content, str(sample_md_with_frontmatter))
-        assert result.status == "ok"
-        assert result.frontmatter is not None
-        assert result.frontmatter["title"] == "Test Document"
-        assert result.frontmatter["author"] == "Test Author"
-        assert result.frontmatter["tags"] == ["test", "example"]
-        assert result.error is None
+        _, frontmatter, status, error = _extract_frontmatter_from_content(
+            content, str(sample_md_with_frontmatter)
+        )
+        assert status == "ok"
+        assert frontmatter is not None
+        assert frontmatter["title"] == "Test Document"
+        assert frontmatter["author"] == "Test Author"
+        assert frontmatter["tags"] == ["test", "example"]
+        assert error is None
 
     def test_extract_no_frontmatter(
         self,
         sample_md_without_frontmatter: Path,
     ) -> None:
         content = sample_md_without_frontmatter.read_text(encoding="utf-8")
-        result = _extract_frontmatter_from_content(content, str(sample_md_without_frontmatter))
-        assert result.status == "illegal"
-        assert result.error == "no_frontmatter"
-        assert result.frontmatter is None
+        _, frontmatter, status, error = _extract_frontmatter_from_content(
+            content, str(sample_md_without_frontmatter)
+        )
+        assert status == "illegal"
+        assert error == "no_frontmatter"
+        assert frontmatter is None
 
     def test_extract_invalid_frontmatter(self, tmp_path: Path) -> None:
         file_path = tmp_path / "invalid.md"
         file_path.write_text("---\ninvalid: yaml: broken\n---\n", encoding="utf-8")
         content = file_path.read_text(encoding="utf-8")
-        result = _extract_frontmatter_from_content(content, str(file_path))
-        assert result.status == "illegal"
-        assert result.error == "yaml_parse_error"
-        assert result.frontmatter is None
+        _, frontmatter, status, error = _extract_frontmatter_from_content(content, str(file_path))
+        assert status == "illegal"
+        assert error == "yaml_parse_error"
+        assert frontmatter is None
 
     def test_extract_non_dict_frontmatter(self, tmp_path: Path) -> None:
         file_path = tmp_path / "non_dict.md"
         file_path.write_text("---\n- item1\n- item2\n---\n", encoding="utf-8")
         content = file_path.read_text(encoding="utf-8")
-        result = _extract_frontmatter_from_content(content, str(file_path))
-        assert result.status == "illegal"
-        assert result.error == "non_dict_frontmatter"
-        assert result.frontmatter is None
+        _, frontmatter, status, error = _extract_frontmatter_from_content(content, str(file_path))
+        assert status == "illegal"
+        assert error == "non_dict_frontmatter"
+        assert frontmatter is None
 
     def test_extract_incomplete_delimiter(self, tmp_path: Path) -> None:
         file_path = tmp_path / "incomplete.md"
         file_path.write_text("---\ntitle: Test\n", encoding="utf-8")
         content = file_path.read_text(encoding="utf-8")
-        result = _extract_frontmatter_from_content(content, str(file_path))
-        assert result.status == "illegal"
-        assert result.error == "no_frontmatter"
-        assert result.frontmatter is None
+        _, frontmatter, status, error = _extract_frontmatter_from_content(content, str(file_path))
+        assert status == "illegal"
+        assert error == "no_frontmatter"
+        assert frontmatter is None
 
-    def test_returns_frontmatter_entry(self, tmp_path: Path) -> None:
+    def test_returns_tuple(self, tmp_path: Path) -> None:
         file_path = tmp_path / "test.md"
         file_path.write_text("---\ntitle: Test\n---\nContent", encoding="utf-8")
         content = file_path.read_text(encoding="utf-8")
         result = _extract_frontmatter_from_content(content, str(file_path))
-        assert isinstance(result, FileEntry)
+        assert isinstance(result, tuple)
+        assert len(result) == 4
 
     def test_extract_datetime_serialized_to_iso_string(self, tmp_path: Path) -> None:
         file_path = tmp_path / "datetime.md"
@@ -78,11 +83,11 @@ class TestExtractFrontmatterFromContent:
             encoding="utf-8",
         )
         content = file_path.read_text(encoding="utf-8")
-        result = _extract_frontmatter_from_content(content, str(file_path))
-        assert result.status == "ok"
-        assert result.frontmatter is not None
-        assert result.frontmatter["date"] == "2024-03-15"
-        assert result.frontmatter["datetime"] == "2024-03-15T10:30:00"
+        _, frontmatter, status, _ = _extract_frontmatter_from_content(content, str(file_path))
+        assert status == "ok"
+        assert frontmatter is not None
+        assert frontmatter["date"] == "2024-03-15"
+        assert frontmatter["datetime"] == "2024-03-15T10:30:00"
 
     def test_extract_nested_datetime_serialized(self, tmp_path: Path) -> None:
         file_path = tmp_path / "nested.md"
@@ -97,10 +102,11 @@ class TestExtractFrontmatterFromContent:
         )
         file_path.write_text(content, encoding="utf-8")
         result = _extract_frontmatter_from_content(content, str(file_path))
-        assert result.status == "ok"
-        assert result.frontmatter is not None
-        assert result.frontmatter["metadata"]["created"] == "2024-01-01"
-        assert result.frontmatter["metadata"]["updated"] == "2024-06-15T14:00:00"
+        _, frontmatter, status, _ = result
+        assert status == "ok"
+        assert frontmatter is not None
+        assert frontmatter["metadata"]["created"] == "2024-01-01"
+        assert frontmatter["metadata"]["updated"] == "2024-06-15T14:00:00"
 
     def test_extract_list_with_datetime_serialized(self, tmp_path: Path) -> None:
         file_path = tmp_path / "list.md"
@@ -109,10 +115,10 @@ class TestExtractFrontmatterFromContent:
             encoding="utf-8",
         )
         content = file_path.read_text(encoding="utf-8")
-        result = _extract_frontmatter_from_content(content, str(file_path))
-        assert result.status == "ok"
-        assert result.frontmatter is not None
-        assert result.frontmatter["events"] == ["2024-01-01", "2024-02-15"]
+        _, frontmatter, status, _ = _extract_frontmatter_from_content(content, str(file_path))
+        assert status == "ok"
+        assert frontmatter is not None
+        assert frontmatter["events"] == ["2024-01-01", "2024-02-15"]
 
     def test_extract_mixed_content_with_datetime(self, tmp_path: Path) -> None:
         file_path = tmp_path / "mixed.md"
@@ -128,20 +134,23 @@ class TestExtractFrontmatterFromContent:
             "Content"
         )
         file_path.write_text(content, encoding="utf-8")
-        result = _extract_frontmatter_from_content(content, str(file_path))
-        assert result.status == "ok"
-        assert result.frontmatter is not None
-        assert result.frontmatter["title"] == "Test"
-        assert result.frontmatter["tags"] == ["test", "example"]
-        assert result.frontmatter["published"] == "2024-03-15"
-        assert result.frontmatter["author"] == "John Doe"
+        _, frontmatter, status, _ = _extract_frontmatter_from_content(content, str(file_path))
+        assert status == "ok"
+        assert frontmatter is not None
+        assert frontmatter["title"] == "Test"
+        assert frontmatter["tags"] == ["test", "example"]
+        assert frontmatter["published"] == "2024-03-15"
+        assert frontmatter["author"] == "John Doe"
 
-    def test_extract_returns_minimal_entry(self, tmp_path: Path) -> None:
+    def test_extract_returns_tuple_elements(self, tmp_path: Path) -> None:
         file_path = tmp_path / "test.md"
         file_path.write_text("---\ntitle: Test\n---\nContent", encoding="utf-8")
         content = file_path.read_text(encoding="utf-8")
         result = _extract_frontmatter_from_content(content, str(file_path))
-        assert result.stats is None
+        assert isinstance(result[0], str)
+        assert isinstance(result[1], dict | None)
+        assert isinstance(result[2], str)
+        assert result[3] is None or isinstance(result[3], str)
 
 
 class TestWorkerExtract:

@@ -35,7 +35,7 @@ def _serialize_datetime(
 def _extract_frontmatter_from_content(
     content: str,
     file_path_str: str,
-) -> FileEntry:
+) -> tuple[str, dict[str, object] | None, str, str | None]:
     """Extract and validate YAML frontmatter from file content.
 
     Args:
@@ -43,55 +43,30 @@ def _extract_frontmatter_from_content(
         file_path_str: The file path as a string for the entry.
 
     Returns:
-        FileEntry with status "ok" or "illegal".
+        Tuple of (file_path, frontmatter, status, error).
     """
     content = content.strip()
 
     if not content.startswith("---"):
-        return FileEntry(
-            file_path=file_path_str,
-            frontmatter=None,
-            status="illegal",
-            error="no_frontmatter",
-        )
+        return (file_path_str, None, "illegal", "no_frontmatter")
 
     parts = content.split("---", 2)
     if len(parts) < 3:
-        return FileEntry(
-            file_path=file_path_str,
-            frontmatter=None,
-            status="illegal",
-            error="no_frontmatter",
-        )
+        return (file_path_str, None, "illegal", "no_frontmatter")
 
     yaml_block = parts[1]
     try:
         data = yaml.safe_load(yaml_block)
     except yaml.YAMLError:
-        return FileEntry(
-            file_path=file_path_str,
-            frontmatter=None,
-            status="illegal",
-            error="yaml_parse_error",
-        )
+        return (file_path_str, None, "illegal", "yaml_parse_error")
 
     if not isinstance(data, dict):
-        return FileEntry(
-            file_path=file_path_str,
-            frontmatter=None,
-            status="illegal",
-            error="non_dict_frontmatter",
-        )
+        return (file_path_str, None, "illegal", "non_dict_frontmatter")
 
     data = _serialize_datetime(data)
     serialized = cast("dict[str, object] | None", data)
 
-    return FileEntry(
-        file_path=file_path_str,
-        frontmatter=serialized,
-        status="ok",
-        error=None,
-    )
+    return (file_path_str, serialized, "ok", None)
 
 
 def _compute_file_hash(content: bytes) -> str | None:
@@ -140,7 +115,7 @@ def _worker_extract(
         )
 
     content = raw_bytes.decode("utf-8")
-    entry = _extract_frontmatter_from_content(content, file_str)
+    fm_file_path, frontmatter, status, error = _extract_frontmatter_from_content(content, file_str)
 
     file_size: int | None = None
     modified_time: str | None = None
@@ -166,10 +141,10 @@ def _worker_extract(
     )
 
     return FileEntry(
-        file_path=entry.file_path,
-        frontmatter=entry.frontmatter,
-        status=entry.status,
-        error=entry.error,
+        file_path=fm_file_path,
+        frontmatter=frontmatter,
+        status=status,
+        error=error,
         stats=file_stats,
         file_hash=file_hash,
     )

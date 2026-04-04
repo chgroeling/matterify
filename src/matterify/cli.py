@@ -8,7 +8,7 @@ import click
 from structlog import get_logger
 
 from matterify import __version__
-from matterify.extractor import aggregate_frontmatter
+from matterify.extractor import scan_directory
 from matterify.logging import configure_debug_logging, get_console
 from matterify.scanner import BLACKLIST
 
@@ -72,19 +72,44 @@ def main(
     if verbose:
         console.print(f"Scanning: {directory}")
 
-    result: dict[str, object] = aggregate_frontmatter(
-        directory, n_procs=n_procs, blacklist=blacklist
-    )
+    from matterify import AggregatedResult
+
+    result: AggregatedResult = scan_directory(directory, n_procs=n_procs, blacklist=blacklist)
+
+    result_dict = {
+        "metadata": {
+            "source_directory": result.metadata.source_directory,
+            "total_files": result.metadata.total_files,
+            "files_with_frontmatter": result.metadata.files_with_frontmatter,
+            "files_without_frontmatter": result.metadata.files_without_frontmatter,
+            "errors": result.metadata.errors,
+            "scan_duration_seconds": result.metadata.scan_duration_seconds,
+            "avg_duration_per_file_ms": result.metadata.avg_duration_per_file_ms,
+            "throughput_files_per_second": result.metadata.throughput_files_per_second,
+        },
+        "files": [
+            {
+                "file_path": entry.file_path,
+                "frontmatter": entry.frontmatter,
+                "status": entry.status,
+                "error": entry.error,
+                "file_size": entry.file_size,
+                "modified_time": entry.modified_time,
+                "access_time": entry.access_time,
+            }
+            for entry in result.files
+        ],
+    }
 
     if output:
-        output.write_text(_json.dumps(result, indent=2, ensure_ascii=False), encoding="utf-8")
+        output.write_text(_json.dumps(result_dict, indent=2, ensure_ascii=False), encoding="utf-8")
         if verbose:
             console.print(f"Exported to: {output}")
-            m: dict[str, int | float] = result["metadata"]  # type: ignore[assignment]
-            console.print(f"Total files: {m['total_files']}")
-            console.print(f"With frontmatter: {m['files_with_frontmatter']}")
-            console.print(f"Without frontmatter: {m['files_without_frontmatter']}")
-            console.print(f"Errors: {m['errors']}")
-            console.print(f"Duration: {m['scan_duration_seconds']}s")
+            m = result.metadata
+            console.print(f"Total files: {m.total_files}")
+            console.print(f"With frontmatter: {m.files_with_frontmatter}")
+            console.print(f"Without frontmatter: {m.files_without_frontmatter}")
+            console.print(f"Errors: {m.errors}")
+            console.print(f"Duration: {m.scan_duration_seconds}s")
     else:
-        click.echo(_json.dumps(result, indent=2))
+        click.echo(_json.dumps(result_dict, indent=2))

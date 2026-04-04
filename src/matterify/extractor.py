@@ -141,7 +141,7 @@ def _worker_extract(root_str: str, file_str: str) -> FrontmatterEntry:
     return extract_frontmatter(Path(file_str))
 
 
-def _aggregate_dataclass(
+def scan_directory(
     directory: Path,
     n_procs: int | None = None,
     blacklist: tuple[str, ...] | None = None,
@@ -249,45 +249,3 @@ def _aggregate_dataclass(
     )
 
     return AggregatedResult(metadata=metadata, files=results)
-
-
-def aggregate_frontmatter(
-    directory: Path,
-    n_procs: int | None = None,
-    blacklist: tuple[str, ...] | None = None,
-) -> dict[str, object]:
-    """Scan directory and aggregate frontmatter, returning a dictionary.
-
-    Args:
-        directory: Root directory to scan.
-        n_procs: Worker process count (default: auto-detect CPU cores, capped at file count).
-        blacklist: Directory names to exclude from traversal.
-
-    Returns:
-        Dictionary with metadata and files entries.
-    """
-    result = _aggregate_dataclass(directory, n_procs=n_procs, blacklist=blacklist)
-    return {
-        "metadata": {
-            "source_directory": result.metadata.source_directory,
-            "total_files": result.metadata.total_files,
-            "files_with_frontmatter": result.metadata.files_with_frontmatter,
-            "files_without_frontmatter": result.metadata.files_without_frontmatter,
-            "errors": result.metadata.errors,
-            "scan_duration_seconds": result.metadata.scan_duration_seconds,
-            "avg_duration_per_file_ms": result.metadata.avg_duration_per_file_ms,
-            "throughput_files_per_second": result.metadata.throughput_files_per_second,
-        },
-        "files": [
-            {
-                "file_path": entry.file_path,
-                "frontmatter": entry.frontmatter,
-                "status": entry.status,
-                "error": entry.error,
-                "file_size": entry.file_size,
-                "modified_time": entry.modified_time,
-                "access_time": entry.access_time,
-            }
-            for entry in result.files
-        ],
-    }

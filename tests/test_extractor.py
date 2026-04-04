@@ -2,9 +2,10 @@
 
 from pathlib import Path
 
+from matterify import AggregatedResult
 from matterify.extractor import (
-    aggregate_frontmatter,
     extract_frontmatter,
+    scan_directory,
 )
 from matterify.models import FrontmatterEntry
 
@@ -146,37 +147,37 @@ class TestExtractFrontmatter:
         assert result.access_time is not None
 
 
-class TestAggregateFrontmatter:
-    """Tests for aggregate_frontmatter returning dict."""
+class TestScanDirectory:
+    """Tests for scan_directory returning AggregatedResult."""
 
     def test_aggregate_collects_all_files(self, sample_project: Path) -> None:
-        result = aggregate_frontmatter(sample_project)
-        assert result["metadata"]["total_files"] == 2
-        assert result["metadata"]["files_with_frontmatter"] == 2
-        assert len(result["files"]) == 2
+        result = scan_directory(sample_project)
+        assert result.metadata.total_files == 2
+        assert result.metadata.files_with_frontmatter == 2
+        assert len(result.files) == 2
 
     def test_aggregate_metadata_accuracy(self, sample_project: Path) -> None:
-        result = aggregate_frontmatter(sample_project)
-        assert result["metadata"]["source_directory"] == str(sample_project)
-        assert result["metadata"]["errors"] == 0
+        result = scan_directory(sample_project)
+        assert result.metadata.source_directory == str(sample_project)
+        assert result.metadata.errors == 0
 
     def test_aggregate_file_paths_relative(self, sample_project: Path) -> None:
-        result = aggregate_frontmatter(sample_project)
-        for entry in result["files"]:
-            assert not entry["file_path"].startswith("/")
+        result = scan_directory(sample_project)
+        for entry in result.files:
+            assert not entry.file_path.startswith("/")
 
     def test_aggregate_empty_directory(self, tmp_path: Path) -> None:
-        result = aggregate_frontmatter(tmp_path)
-        assert result["metadata"]["total_files"] == 0
-        assert result["files"] == []
+        result = scan_directory(tmp_path)
+        assert result.metadata.total_files == 0
+        assert result.files == []
 
-    def test_aggregate_returns_dict(self, sample_project: Path) -> None:
-        result = aggregate_frontmatter(sample_project)
-        assert isinstance(result, dict)
+    def test_aggregate_returns_dataclass(self, sample_project: Path) -> None:
+        result = scan_directory(sample_project)
+        assert isinstance(result, AggregatedResult)
 
     def test_aggregate_sorted_by_path(self, sample_project: Path) -> None:
-        result = aggregate_frontmatter(sample_project)
-        paths = [e["file_path"] for e in result["files"]]
+        result = scan_directory(sample_project)
+        paths = [e.file_path for e in result.files]
         assert paths == sorted(paths)
 
     def test_aggregate_with_mixed_files(self, tmp_path: Path) -> None:
@@ -184,25 +185,25 @@ class TestAggregateFrontmatter:
         project.mkdir()
         (project / "valid.md").write_text("---\ntitle: Valid\n---\nContent", encoding="utf-8")
         (project / "no_fm.md").write_text("# No frontmatter", encoding="utf-8")
-        result = aggregate_frontmatter(project)
-        assert result["metadata"]["total_files"] == 2
-        assert result["metadata"]["files_with_frontmatter"] == 1
-        assert result["metadata"]["files_without_frontmatter"] == 1
-        assert result["metadata"]["errors"] == 0
+        result = scan_directory(project)
+        assert result.metadata.total_files == 2
+        assert result.metadata.files_with_frontmatter == 1
+        assert result.metadata.files_without_frontmatter == 1
+        assert result.metadata.errors == 0
 
     def test_aggregate_with_errors(self, tmp_path: Path) -> None:
         project = tmp_path / "project"
         project.mkdir()
         (project / "valid.md").write_text("---\ntitle: Valid\n---\nContent", encoding="utf-8")
         (project / "non_dict.md").write_text("---\n- list\n---\nContent", encoding="utf-8")
-        result = aggregate_frontmatter(project)
-        assert result["metadata"]["total_files"] == 2
-        assert result["metadata"]["files_with_frontmatter"] == 1
-        assert result["metadata"]["errors"] == 1
-        assert result["metadata"]["files_without_frontmatter"] == 0
-        illegal = [e for e in result["files"] if e["status"] == "illegal"]
+        result = scan_directory(project)
+        assert result.metadata.total_files == 2
+        assert result.metadata.files_with_frontmatter == 1
+        assert result.metadata.errors == 1
+        assert result.metadata.files_without_frontmatter == 0
+        illegal = [e for e in result.files if e.status == "illegal"]
         assert len(illegal) == 1
-        assert illegal[0]["error"] == "non_dict_frontmatter"
+        assert illegal[0].error == "non_dict_frontmatter"
 
     def test_aggregate_respects_blacklist(self, tmp_path: Path) -> None:
         project = tmp_path / "project"
@@ -211,11 +212,11 @@ class TestAggregateFrontmatter:
         git_dir.mkdir()
         (git_dir / "skip.md").write_text("---\ntitle: Skip\n---\nContent", encoding="utf-8")
         (project / "keep.md").write_text("---\ntitle: Keep\n---\nContent", encoding="utf-8")
-        result = aggregate_frontmatter(project)
-        assert result["metadata"]["total_files"] == 1
-        assert result["files"][0]["file_path"] == "keep.md"
+        result = scan_directory(project)
+        assert result.metadata.total_files == 1
+        assert result.files[0].file_path == "keep.md"
 
     def test_aggregate_timing(self, sample_project: Path) -> None:
-        result = aggregate_frontmatter(sample_project)
-        assert result["metadata"]["scan_duration_seconds"] >= 0
-        assert result["metadata"]["avg_duration_per_file_ms"] >= 0
+        result = scan_directory(sample_project)
+        assert result.metadata.scan_duration_seconds >= 0
+        assert result.metadata.avg_duration_per_file_ms >= 0

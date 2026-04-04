@@ -4,20 +4,22 @@ from pathlib import Path
 
 from matterify import AggregatedResult
 from matterify.extractor import (
-    _extract_frontmatter,
+    _extract_frontmatter_from_content,
+    _worker_extract,
     scan_directory,
 )
 from matterify.models import FrontmatterEntry
 
 
-class TestExtractFrontmatter:
-    """Tests for _extract_frontmatter."""
+class TestExtractFrontmatterFromContent:
+    """Tests for _extract_frontmatter_from_content."""
 
     def test_extract_valid_frontmatter(
         self,
         sample_md_with_frontmatter: Path,
     ) -> None:
-        result = _extract_frontmatter(sample_md_with_frontmatter)
+        content = sample_md_with_frontmatter.read_text(encoding="utf-8")
+        result = _extract_frontmatter_from_content(content, str(sample_md_with_frontmatter))
         assert result.status == "ok"
         assert result.frontmatter is not None
         assert result.frontmatter["title"] == "Test Document"
@@ -29,7 +31,8 @@ class TestExtractFrontmatter:
         self,
         sample_md_without_frontmatter: Path,
     ) -> None:
-        result = _extract_frontmatter(sample_md_without_frontmatter)
+        content = sample_md_without_frontmatter.read_text(encoding="utf-8")
+        result = _extract_frontmatter_from_content(content, str(sample_md_without_frontmatter))
         assert result.status == "illegal"
         assert result.error == "no_frontmatter"
         assert result.frontmatter is None
@@ -37,7 +40,8 @@ class TestExtractFrontmatter:
     def test_extract_invalid_frontmatter(self, tmp_path: Path) -> None:
         file_path = tmp_path / "invalid.md"
         file_path.write_text("---\ninvalid: yaml: broken\n---\n", encoding="utf-8")
-        result = _extract_frontmatter(file_path)
+        content = file_path.read_text(encoding="utf-8")
+        result = _extract_frontmatter_from_content(content, str(file_path))
         assert result.status == "illegal"
         assert result.error == "yaml_parse_error"
         assert result.frontmatter is None
@@ -45,7 +49,8 @@ class TestExtractFrontmatter:
     def test_extract_non_dict_frontmatter(self, tmp_path: Path) -> None:
         file_path = tmp_path / "non_dict.md"
         file_path.write_text("---\n- item1\n- item2\n---\n", encoding="utf-8")
-        result = _extract_frontmatter(file_path)
+        content = file_path.read_text(encoding="utf-8")
+        result = _extract_frontmatter_from_content(content, str(file_path))
         assert result.status == "illegal"
         assert result.error == "non_dict_frontmatter"
         assert result.frontmatter is None
@@ -53,7 +58,8 @@ class TestExtractFrontmatter:
     def test_extract_incomplete_delimiter(self, tmp_path: Path) -> None:
         file_path = tmp_path / "incomplete.md"
         file_path.write_text("---\ntitle: Test\n", encoding="utf-8")
-        result = _extract_frontmatter(file_path)
+        content = file_path.read_text(encoding="utf-8")
+        result = _extract_frontmatter_from_content(content, str(file_path))
         assert result.status == "illegal"
         assert result.error == "no_frontmatter"
         assert result.frontmatter is None
@@ -61,7 +67,8 @@ class TestExtractFrontmatter:
     def test_returns_frontmatter_entry(self, tmp_path: Path) -> None:
         file_path = tmp_path / "test.md"
         file_path.write_text("---\ntitle: Test\n---\nContent", encoding="utf-8")
-        result = _extract_frontmatter(file_path)
+        content = file_path.read_text(encoding="utf-8")
+        result = _extract_frontmatter_from_content(content, str(file_path))
         assert isinstance(result, FrontmatterEntry)
 
     def test_extract_datetime_serialized_to_iso_string(self, tmp_path: Path) -> None:
@@ -70,7 +77,8 @@ class TestExtractFrontmatter:
             "---\ntitle: Test\ndate: 2024-03-15\ndatetime: 2024-03-15T10:30:00\n---\nContent",
             encoding="utf-8",
         )
-        result = _extract_frontmatter(file_path)
+        content = file_path.read_text(encoding="utf-8")
+        result = _extract_frontmatter_from_content(content, str(file_path))
         assert result.status == "ok"
         assert result.frontmatter is not None
         assert result.frontmatter["date"] == "2024-03-15"
@@ -88,7 +96,7 @@ class TestExtractFrontmatter:
             "Content"
         )
         file_path.write_text(content, encoding="utf-8")
-        result = _extract_frontmatter(file_path)
+        result = _extract_frontmatter_from_content(content, str(file_path))
         assert result.status == "ok"
         assert result.frontmatter is not None
         assert result.frontmatter["metadata"]["created"] == "2024-01-01"
@@ -100,7 +108,8 @@ class TestExtractFrontmatter:
             "---\ntitle: Test\nevents:\n  - 2024-01-01\n  - 2024-02-15\n---\nContent",
             encoding="utf-8",
         )
-        result = _extract_frontmatter(file_path)
+        content = file_path.read_text(encoding="utf-8")
+        result = _extract_frontmatter_from_content(content, str(file_path))
         assert result.status == "ok"
         assert result.frontmatter is not None
         assert result.frontmatter["events"] == ["2024-01-01", "2024-02-15"]
@@ -119,7 +128,7 @@ class TestExtractFrontmatter:
             "Content"
         )
         file_path.write_text(content, encoding="utf-8")
-        result = _extract_frontmatter(file_path)
+        result = _extract_frontmatter_from_content(content, str(file_path))
         assert result.status == "ok"
         assert result.frontmatter is not None
         assert result.frontmatter["title"] == "Test"
@@ -130,11 +139,31 @@ class TestExtractFrontmatter:
     def test_extract_returns_minimal_entry(self, tmp_path: Path) -> None:
         file_path = tmp_path / "test.md"
         file_path.write_text("---\ntitle: Test\n---\nContent", encoding="utf-8")
-        result = _extract_frontmatter(file_path)
+        content = file_path.read_text(encoding="utf-8")
+        result = _extract_frontmatter_from_content(content, str(file_path))
         assert result.file_size is None
         assert result.modified_time is None
         assert result.access_time is None
         assert result.file_hash is None
+
+
+class TestWorkerExtract:
+    """Tests for _worker_extract."""
+
+    def test_worker_returns_complete_entry(self, tmp_path: Path) -> None:
+        file_path = tmp_path / "test.md"
+        file_path.write_text("---\ntitle: Test\n---\nContent", encoding="utf-8")
+        result = _worker_extract(str(tmp_path), str(file_path))
+        assert isinstance(result, FrontmatterEntry)
+        assert result.file_size is not None
+        assert result.modified_time is not None
+        assert result.access_time is not None
+        assert result.file_hash is not None
+
+    def test_worker_handles_missing_file(self, tmp_path: Path) -> None:
+        result = _worker_extract(str(tmp_path), str(tmp_path / "nonexistent.md"))
+        assert result.status == "illegal"
+        assert result.error is not None
 
 
 class TestScanDirectory:

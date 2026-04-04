@@ -6,7 +6,6 @@ import time
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from datetime import date, datetime
 from pathlib import Path
-from dataclasses import dataclass
 from typing import TypedDict, cast
 
 import yaml
@@ -33,28 +32,24 @@ def _serialize_datetime(
     return value
 
 
-def _extract_frontmatter(file_path: Path) -> FrontmatterEntry:
-    """Extract and validate YAML frontmatter from a Markdown file.
+def _extract_frontmatter_from_content(
+    content: str,
+    file_path_str: str,
+) -> FrontmatterEntry:
+    """Extract and validate YAML frontmatter from file content.
 
     Args:
-        file_path: Path to the Markdown file.
+        content: The file content as a string.
+        file_path_str: The file path as a string for the entry.
 
     Returns:
         FrontmatterEntry with status "ok" or "illegal".
     """
-    try:
-        content = file_path.read_text(encoding="utf-8").strip()
-    except Exception as exc:
-        return FrontmatterEntry(
-            file_path=str(file_path),
-            frontmatter=None,
-            status="illegal",
-            error=str(exc),
-        )
+    content = content.strip()
 
     if not content.startswith("---"):
         return FrontmatterEntry(
-            file_path=str(file_path),
+            file_path=file_path_str,
             frontmatter=None,
             status="illegal",
             error="no_frontmatter",
@@ -63,7 +58,7 @@ def _extract_frontmatter(file_path: Path) -> FrontmatterEntry:
     parts = content.split("---", 2)
     if len(parts) < 3:
         return FrontmatterEntry(
-            file_path=str(file_path),
+            file_path=file_path_str,
             frontmatter=None,
             status="illegal",
             error="no_frontmatter",
@@ -74,7 +69,7 @@ def _extract_frontmatter(file_path: Path) -> FrontmatterEntry:
         data = yaml.safe_load(yaml_block)
     except yaml.YAMLError:
         return FrontmatterEntry(
-            file_path=str(file_path),
+            file_path=file_path_str,
             frontmatter=None,
             status="illegal",
             error="yaml_parse_error",
@@ -82,7 +77,7 @@ def _extract_frontmatter(file_path: Path) -> FrontmatterEntry:
 
     if not isinstance(data, dict):
         return FrontmatterEntry(
-            file_path=str(file_path),
+            file_path=file_path_str,
             frontmatter=None,
             status="illegal",
             error="non_dict_frontmatter",
@@ -92,7 +87,7 @@ def _extract_frontmatter(file_path: Path) -> FrontmatterEntry:
     serialized = cast("dict[str, object] | None", data)
 
     return FrontmatterEntry(
-        file_path=str(file_path),
+        file_path=file_path_str,
         frontmatter=serialized,
         status="ok",
         error=None,
@@ -133,17 +128,16 @@ def _get_file_stats(file_path: Path) -> _FileStats:
     }
 
 
-def _compute_file_hash(file_path: Path) -> str | None:
+def _compute_file_hash(content: bytes) -> str | None:
     """Compute SHA-256 hash of file content.
 
     Args:
-        file_path: Path to the file.
+        content: The file content as bytes.
 
     Returns:
         Hex string of SHA-256 hash, or None on error.
     """
     try:
-        content = file_path.read_bytes()
         return hashlib.sha256(content).hexdigest()
     except OSError:
         return None
@@ -152,14 +146,41 @@ def _compute_file_hash(file_path: Path) -> str | None:
 def _worker_extract(root_str: str, file_str: str) -> FrontmatterEntry:
     """Worker function for ProcessPoolExecutor.
 
+    Reads the file once and computes hash, stats, and frontmatter.
+
     Args:
         root_str: Root directory as string (unused, kept for future extension).
         file_str: Absolute file path as string.
 
     Returns:
-        FrontmatterEntry for the given file.
+        Fully populated FrontmatterEntry for the given file.
     """
-    return _extract_frontmatter(Path(file_str))
+    file_path = Path(file_str)
+    try:
+        raw_bytes = file_path.read_bytes()
+    except Exception as exc:
+        return FrontmatterEntry(
+            file_path=str(file_path),
+            frontmatter=None,
+            status="illegal",
+            error=str(exc),
+        )
+
+    content = raw_bytes.decode("utf-8")
+    entry = _extract_frontmatter_from_content(content, str(file_path))
+    stats = _get_file_stats(file_path)
+    file_hash = _compute_file_hash(raw_bytes)
+
+    return FrontmatterEntry(
+        file_path=entry.file_path,
+        frontmatter=entry.frontmatter,
+        status=entry.status,
+        error=entry.error,
+        file_size=stats["file_size"],
+        modified_time=stats["modified_time"],
+        access_time=stats["access_time"],
+        file_hash=file_hash,
+    )
 
 
 def scan_directory(
@@ -240,22 +261,16 @@ def scan_directory(
             except ValueError:
                 rel_path = entry.file_path
 
-            file_path = Path(entry.file_path)
-            stats = _get_file_stats(file_path)
-            file_hash: str | None = None
-            if compute_hash:
-                file_hash = _compute_file_hash(file_path)
-
             results.append(
                 FrontmatterEntry(
                     file_path=rel_path,
                     frontmatter=entry.frontmatter,
                     status=entry.status,
                     error=entry.error,
-                    file_size=stats["file_size"],
-                    modified_time=stats["modified_time"],
-                    access_time=stats["access_time"],
-                    file_hash=file_hash,
+                    file_size=entry.file_size,
+                    modified_time=entry.modified_time,
+                    access_time=entry.access_time,
+                    file_hash=entry.file_hash if compute_hash else None,
                 )
             )
 

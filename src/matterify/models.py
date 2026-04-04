@@ -2,20 +2,6 @@
 
 from dataclasses import dataclass
 
-BLACKLIST: tuple[str, ...] = (
-    ".git",
-    ".obsidian",
-    "__pycache__",
-    ".venv",
-    "venv",
-    "node_modules",
-    ".mypy_cache",
-    ".pytest_cache",
-    ".ruff_cache",
-)
-
-DEFAULT_N_PROCS = 1
-
 
 @dataclass(frozen=True)
 class FrontmatterEntry:

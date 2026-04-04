@@ -38,6 +38,7 @@ class ScanMetadata:
         errors: Count of files that produced errors.
         scan_duration_seconds: Total time taken for the scan.
         avg_duration_per_file_ms: Average processing time per file.
+        throughput_files_per_second: Number of files processed per second.
     """
 
     source_directory: str
@@ -47,6 +48,7 @@ class ScanMetadata:
     errors: int
     scan_duration_seconds: float
     avg_duration_per_file_ms: float
+    throughput_files_per_second: float
 
 
 @dataclass(frozen=True)

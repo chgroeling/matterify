@@ -79,6 +79,7 @@ class TestScanMetadata:
             errors=1,
             scan_duration_seconds=1.5,
             avg_duration_per_file_ms=150.0,
+            throughput_files_per_second=6.7,
         )
         assert metadata.source_directory == "/path/to/dir"
         assert metadata.total_files == 10
@@ -87,6 +88,7 @@ class TestScanMetadata:
         assert metadata.errors == 1
         assert metadata.scan_duration_seconds == 1.5
         assert metadata.avg_duration_per_file_ms == 150.0
+        assert metadata.throughput_files_per_second == 6.7
 
     def test_immutability(self) -> None:
         metadata = ScanMetadata(
@@ -97,6 +99,7 @@ class TestScanMetadata:
             errors=0,
             scan_duration_seconds=0.0,
             avg_duration_per_file_ms=0.0,
+            throughput_files_per_second=0.0,
         )
         try:
             metadata.total_files = 1
@@ -104,8 +107,6 @@ class TestScanMetadata:
         except AttributeError:
             pass
 
-
-class TestAggregatedResult:
     """Tests for AggregatedResult dataclass."""
 
     def test_create_result(self) -> None:
@@ -117,6 +118,7 @@ class TestAggregatedResult:
             errors=0,
             scan_duration_seconds=0.1,
             avg_duration_per_file_ms=100.0,
+            throughput_files_per_second=10.0,
         )
         entry = FrontmatterEntry(
             file_path="test.md",
@@ -138,6 +140,7 @@ class TestAggregatedResult:
             errors=0,
             scan_duration_seconds=0.0,
             avg_duration_per_file_ms=0.0,
+            throughput_files_per_second=0.0,
         )
         result = AggregatedResult(metadata=metadata, files=[])
         try:

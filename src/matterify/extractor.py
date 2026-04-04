@@ -176,6 +176,7 @@ def _aggregate_dataclass(
             errors=0,
             scan_duration_seconds=round(duration, 3),
             avg_duration_per_file_ms=0.0,
+            throughput_files_per_second=0.0,
         )
         return AggregatedResult(metadata=metadata, files=[])
 
@@ -214,6 +215,7 @@ def _aggregate_dataclass(
 
     duration = time.perf_counter() - start_time
     avg_ms = (duration / total_files * 1000) if total_files > 0 else 0.0
+    throughput = (total_files / duration) if duration > 0 else 0.0
 
     metadata = ScanMetadata(
         source_directory=str(directory),
@@ -223,6 +225,7 @@ def _aggregate_dataclass(
         errors=errors,
         scan_duration_seconds=round(duration, 3),
         avg_duration_per_file_ms=round(avg_ms, 1),
+        throughput_files_per_second=round(throughput, 1),
     )
 
     logger.info(
@@ -232,6 +235,7 @@ def _aggregate_dataclass(
         errors=errors,
         duration=round(duration, 3),
         n_procs=effective_n_procs,
+        throughput=round(throughput, 1),
     )
 
     return AggregatedResult(metadata=metadata, files=results)
@@ -262,6 +266,7 @@ def aggregate_frontmatter(
             "errors": result.metadata.errors,
             "scan_duration_seconds": result.metadata.scan_duration_seconds,
             "avg_duration_per_file_ms": result.metadata.avg_duration_per_file_ms,
+            "throughput_files_per_second": result.metadata.throughput_files_per_second,
         },
         "files": [
             {
@@ -300,6 +305,7 @@ def export_json(
             "errors": result.metadata.errors,
             "scan_duration_seconds": result.metadata.scan_duration_seconds,
             "avg_duration_per_file_ms": result.metadata.avg_duration_per_file_ms,
+            "throughput_files_per_second": result.metadata.throughput_files_per_second,
         },
         "files": [
             {

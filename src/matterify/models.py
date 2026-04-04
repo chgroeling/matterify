@@ -15,6 +15,7 @@ class FrontmatterEntry:
         file_size: File size in bytes, or None if unavailable.
         modified_time: Last modification time as ISO 8601 string, or None.
         access_time: Last access time as ISO 8601 string, or None.
+        file_hash: SHA-256 hash of file content, or None if not computed.
     """
 
     file_path: str
@@ -24,6 +25,7 @@ class FrontmatterEntry:
     file_size: int | None = None
     modified_time: str | None = None
     access_time: str | None = None
+    file_hash: str | None = None
 
 
 @dataclass(frozen=True)

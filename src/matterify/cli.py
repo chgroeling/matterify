@@ -42,6 +42,14 @@ logger = get_logger(__name__)
     multiple=True,
     help="Directories to exclude from scanning.",
 )
+@click.option(
+    "--hash",
+    "-H",
+    "compute_hash",
+    is_flag=True,
+    default=False,
+    help="Compute SHA-256 hash for each file.",
+)
 @click.pass_context
 def main(
     ctx: click.Context,
@@ -51,6 +59,7 @@ def main(
     n_procs: int | None,
     verbose: bool,
     exclude: tuple[str, ...],
+    compute_hash: bool,
 ) -> None:
     """Matterify - Extract YAML frontmatter from Markdown files."""
     ctx.ensure_object(dict)
@@ -64,6 +73,7 @@ def main(
         n_procs=n_procs,
         verbose=verbose,
         exclude=list(exclude) if exclude else [],
+        compute_hash=compute_hash,
     )
 
     console: Console = get_console(verbose)
@@ -76,7 +86,10 @@ def main(
     from matterify import AggregatedResult
 
     result: AggregatedResult = scan_directory(
-        directory, n_procs=effective_n_procs, blacklist=blacklist
+        directory,
+        n_procs=effective_n_procs,
+        blacklist=blacklist,
+        compute_hash=compute_hash,
     )
 
     result_dict = {
@@ -99,6 +112,7 @@ def main(
                 "file_size": entry.file_size,
                 "modified_time": entry.modified_time,
                 "access_time": entry.access_time,
+                "file_hash": entry.file_hash,
             }
             for entry in result.files
         ],

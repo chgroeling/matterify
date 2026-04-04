@@ -100,7 +100,7 @@ matterify/
 ## Python API
 
 ### Public Functions
-- `scan_directory(directory: Path, n_procs: int = 4, blacklist: tuple[str, ...] | None = None) -> AggregatedResult`: Scan directory and aggregate frontmatter using parallel workers. Returns an `AggregatedResult` dataclass.
+- `scan_directory(directory: Path, n_procs: int = 4, blacklist: tuple[str, ...] | None = None, compute_hash: bool = False) -> AggregatedResult`: Scan directory and aggregate frontmatter using parallel workers. Returns an `AggregatedResult` dataclass.
 
 ### AggregatedResult Structure
 The `scan_directory()` function returns an `AggregatedResult` dataclass:

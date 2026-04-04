@@ -4,11 +4,12 @@ import json
 from pathlib import Path
 
 from matterify.extractor import (
+    _aggregate_dataclass,
     aggregate_frontmatter,
     export_json,
     extract_frontmatter,
 )
-from matterify.models import AggregatedResult, FrontmatterEntry
+from matterify.models import FrontmatterEntry
 
 
 class TestExtractFrontmatter:
@@ -149,36 +150,36 @@ class TestExtractFrontmatter:
 
 
 class TestAggregateFrontmatter:
-    """Tests for aggregate_frontmatter."""
+    """Tests for aggregate_frontmatter returning dict."""
 
     def test_aggregate_collects_all_files(self, sample_project: Path) -> None:
         result = aggregate_frontmatter(sample_project)
-        assert result.metadata.total_files == 2
-        assert result.metadata.files_with_frontmatter == 2
-        assert len(result.files) == 2
+        assert result["metadata"]["total_files"] == 2
+        assert result["metadata"]["files_with_frontmatter"] == 2
+        assert len(result["files"]) == 2
 
     def test_aggregate_metadata_accuracy(self, sample_project: Path) -> None:
         result = aggregate_frontmatter(sample_project)
-        assert result.metadata.source_directory == str(sample_project)
-        assert result.metadata.errors == 0
+        assert result["metadata"]["source_directory"] == str(sample_project)
+        assert result["metadata"]["errors"] == 0
 
     def test_aggregate_file_paths_relative(self, sample_project: Path) -> None:
         result = aggregate_frontmatter(sample_project)
-        for entry in result.files:
-            assert not entry.file_path.startswith("/")
+        for entry in result["files"]:
+            assert not entry["file_path"].startswith("/")
 
     def test_aggregate_empty_directory(self, tmp_path: Path) -> None:
         result = aggregate_frontmatter(tmp_path)
-        assert result.metadata.total_files == 0
-        assert result.files == []
+        assert result["metadata"]["total_files"] == 0
+        assert result["files"] == []
 
-    def test_aggregate_returns_dataclass(self, sample_project: Path) -> None:
+    def test_aggregate_returns_dict(self, sample_project: Path) -> None:
         result = aggregate_frontmatter(sample_project)
-        assert isinstance(result, AggregatedResult)
+        assert isinstance(result, dict)
 
     def test_aggregate_sorted_by_path(self, sample_project: Path) -> None:
         result = aggregate_frontmatter(sample_project)
-        paths = [e.file_path for e in result.files]
+        paths = [e["file_path"] for e in result["files"]]
         assert paths == sorted(paths)
 
     def test_aggregate_with_mixed_files(self, tmp_path: Path) -> None:
@@ -187,10 +188,10 @@ class TestAggregateFrontmatter:
         (project / "valid.md").write_text("---\ntitle: Valid\n---\nContent", encoding="utf-8")
         (project / "no_fm.md").write_text("# No frontmatter", encoding="utf-8")
         result = aggregate_frontmatter(project)
-        assert result.metadata.total_files == 2
-        assert result.metadata.files_with_frontmatter == 1
-        assert result.metadata.files_without_frontmatter == 1
-        assert result.metadata.errors == 0
+        assert result["metadata"]["total_files"] == 2
+        assert result["metadata"]["files_with_frontmatter"] == 1
+        assert result["metadata"]["files_without_frontmatter"] == 1
+        assert result["metadata"]["errors"] == 0
 
     def test_aggregate_with_errors(self, tmp_path: Path) -> None:
         project = tmp_path / "project"
@@ -198,13 +199,13 @@ class TestAggregateFrontmatter:
         (project / "valid.md").write_text("---\ntitle: Valid\n---\nContent", encoding="utf-8")
         (project / "non_dict.md").write_text("---\n- list\n---\nContent", encoding="utf-8")
         result = aggregate_frontmatter(project)
-        assert result.metadata.total_files == 2
-        assert result.metadata.files_with_frontmatter == 1
-        assert result.metadata.errors == 1
-        assert result.metadata.files_without_frontmatter == 0
-        illegal = [e for e in result.files if e.status == "illegal"]
+        assert result["metadata"]["total_files"] == 2
+        assert result["metadata"]["files_with_frontmatter"] == 1
+        assert result["metadata"]["errors"] == 1
+        assert result["metadata"]["files_without_frontmatter"] == 0
+        illegal = [e for e in result["files"] if e["status"] == "illegal"]
         assert len(illegal) == 1
-        assert illegal[0].error == "non_dict_frontmatter"
+        assert illegal[0]["error"] == "non_dict_frontmatter"
 
     def test_aggregate_respects_blacklist(self, tmp_path: Path) -> None:
         project = tmp_path / "project"
@@ -214,27 +215,27 @@ class TestAggregateFrontmatter:
         (git_dir / "skip.md").write_text("---\ntitle: Skip\n---\nContent", encoding="utf-8")
         (project / "keep.md").write_text("---\ntitle: Keep\n---\nContent", encoding="utf-8")
         result = aggregate_frontmatter(project)
-        assert result.metadata.total_files == 1
-        assert result.files[0].file_path == "keep.md"
+        assert result["metadata"]["total_files"] == 1
+        assert result["files"][0]["file_path"] == "keep.md"
 
     def test_aggregate_timing(self, sample_project: Path) -> None:
         result = aggregate_frontmatter(sample_project)
-        assert result.metadata.scan_duration_seconds >= 0
-        assert result.metadata.avg_duration_per_file_ms >= 0
+        assert result["metadata"]["scan_duration_seconds"] >= 0
+        assert result["metadata"]["avg_duration_per_file_ms"] >= 0
 
 
 class TestExportJson:
     """Tests for export_json."""
 
     def test_export_creates_json_file(self, sample_project: Path, tmp_path: Path) -> None:
-        result = aggregate_frontmatter(sample_project)
+        result = _aggregate_dataclass(sample_project)
         output = tmp_path / "output.json"
         result_path = export_json(result, output)
         assert result_path == output
         assert output.exists()
 
     def test_export_valid_json(self, sample_project: Path, tmp_path: Path) -> None:
-        result = aggregate_frontmatter(sample_project)
+        result = _aggregate_dataclass(sample_project)
         output = tmp_path / "output.json"
         export_json(result, output)
         content = output.read_text(encoding="utf-8")
@@ -243,7 +244,7 @@ class TestExportJson:
         assert "files" in data
 
     def test_export_metadata_fields(self, sample_project: Path, tmp_path: Path) -> None:
-        result = aggregate_frontmatter(sample_project)
+        result = _aggregate_dataclass(sample_project)
         output = tmp_path / "output.json"
         export_json(result, output)
         content = output.read_text(encoding="utf-8")
@@ -258,7 +259,7 @@ class TestExportJson:
         assert "avg_duration_per_file_ms" in meta
 
     def test_export_file_entry_fields(self, sample_project: Path, tmp_path: Path) -> None:
-        result = aggregate_frontmatter(sample_project)
+        result = _aggregate_dataclass(sample_project)
         output = tmp_path / "output.json"
         export_json(result, output)
         content = output.read_text(encoding="utf-8")
@@ -278,7 +279,7 @@ class TestExportJson:
         sample_project: Path,
         tmp_path: Path,
     ) -> None:
-        result = aggregate_frontmatter(sample_project)
+        result = _aggregate_dataclass(sample_project)
         output = tmp_path / "output.json"
         export_json(result, output)
         content = output.read_text(encoding="utf-8")
@@ -295,7 +296,7 @@ class TestExportJson:
             "---\ntitle: Doc\ndate: 2024-03-15\ndatetime: 2024-03-15T10:30:00\n---\nContent",
             encoding="utf-8",
         )
-        result = aggregate_frontmatter(project)
+        result = _aggregate_dataclass(project)
         output = tmp_path / "output.json"
         export_json(result, output)
         content = output.read_text(encoding="utf-8")

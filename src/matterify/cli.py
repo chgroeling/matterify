@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING
 import click
 
 from matterify import __version__
-from matterify.extractor import aggregate_frontmatter, export_json
+from matterify.extractor import _aggregate_dataclass, export_json
 from matterify.logging import configure_debug_logging, get_console
 from matterify.scanner import BLACKLIST
 
@@ -64,7 +64,7 @@ def scan(
     if verbose:
         console.print(f"Scanning: {directory}")
 
-    result = aggregate_frontmatter(directory, n_procs=n_procs, blacklist=blacklist)
+    result = _aggregate_dataclass(directory, n_procs=n_procs, blacklist=blacklist)
 
     if output:
         result_path = export_json(result, output)

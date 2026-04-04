@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 import click
+from structlog import get_logger
 
 from matterify import __version__
 from matterify.extractor import _aggregate_dataclass, export_json
@@ -13,6 +14,8 @@ from matterify.scanner import BLACKLIST
 
 if TYPE_CHECKING:
     from rich.console import Console
+
+logger = get_logger(__name__)
 
 
 @click.command()
@@ -52,6 +55,16 @@ def main(
     """Matterify - Extract YAML frontmatter from Markdown files."""
     ctx.ensure_object(dict)
     configure_debug_logging(debug)
+
+    logger.debug(
+        "cli_invoked",
+        directory=str(directory),
+        debug=debug,
+        output=str(output) if output else None,
+        n_procs=n_procs,
+        verbose=verbose,
+        exclude=list(exclude) if exclude else [],
+    )
 
     console: Console = get_console(verbose)
     blacklist = exclude if exclude else BLACKLIST

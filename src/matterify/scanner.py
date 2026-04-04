@@ -3,6 +3,10 @@
 from collections.abc import Iterable
 from pathlib import Path
 
+from structlog import get_logger
+
+logger = get_logger(__name__)
+
 BLACKLIST: tuple[str, ...] = (
     ".git",
     ".obsidian",
@@ -34,9 +38,16 @@ def iter_markdown_files(
     Yields:
         Absolute paths to discovered Markdown files.
     """
+    logger.debug("starting_directory_traversal", root=str(root), blacklist=blacklist)
+
+    file_paths: list[Path] = []
     for dirpath, dirnames, filenames in root.walk():
         dirnames[:] = [d for d in dirnames if d not in blacklist]
         for filename in filenames:
             suffix = Path(filename).suffix.lower()
             if suffix in _MARKDOWN_SUFFIXES:
-                yield dirpath / filename
+                file_paths.append(dirpath / filename)
+
+    logger.debug("files_discovered", count=len(file_paths), root=str(root))
+
+    yield from file_paths

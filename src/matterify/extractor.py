@@ -162,9 +162,18 @@ def _aggregate_dataclass(
     effective_blacklist = blacklist if blacklist is not None else BLACKLIST
     effective_n_procs = os.cpu_count() or DEFAULT_N_PROCS
 
+    logger.debug(
+        "starting_scan",
+        directory=str(directory),
+        blacklist=effective_blacklist,
+        n_procs=effective_n_procs,
+    )
+
     start_time = time.perf_counter()
     file_paths = list(iter_markdown_files(directory, blacklist=effective_blacklist))
     total_files = len(file_paths)
+
+    logger.debug("files_discovered", count=total_files, directory=str(directory))
 
     if total_files == 0:
         duration = time.perf_counter() - start_time
@@ -181,6 +190,8 @@ def _aggregate_dataclass(
         return AggregatedResult(metadata=metadata, files=[])
 
     max_workers = min(total_files, effective_n_procs)
+    logger.debug("worker_pool_initialized", max_workers=max_workers)
+
     results: list[FrontmatterEntry] = []
 
     with ProcessPoolExecutor(max_workers=max_workers) as executor:

@@ -11,8 +11,9 @@ from typing import cast
 import yaml
 from structlog import get_logger
 
-from matterify.constants import DEFAULT_N_PROCS
+from matterify.constants import BLACKLIST, DEFAULT_N_PROCS
 from matterify.models import AggregatedResult, FileEntry, FileStats, ScanMetadata
+from matterify.scanner import iter_markdown_files
 
 logger = get_logger(__name__)
 
@@ -194,8 +195,6 @@ def scan_directory(
         {'title': 'Getting Started', 'version': '1.0.0'}
         ```
     """
-    from matterify.constants import BLACKLIST
-    from matterify.scanner import iter_markdown_files
 
     effective_blacklist = blacklist if blacklist is not None else BLACKLIST
     effective_n_procs = n_procs if n_procs is not None else os.cpu_count()

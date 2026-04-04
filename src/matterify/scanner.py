@@ -30,14 +30,15 @@ def iter_markdown_files(
     """
     logger.debug("starting_directory_traversal", root=str(root), blacklist=blacklist)
 
-    file_paths: list[Path] = []
+    blacklist_set = set(blacklist)
+    discovered_count = 0
+
     for dirpath, dirnames, filenames in root.walk():
-        dirnames[:] = [d for d in dirnames if d not in blacklist]
+        dirnames[:] = [d for d in dirnames if d not in blacklist_set]
         for filename in filenames:
             suffix = Path(filename).suffix.lower()
             if suffix in _MARKDOWN_SUFFIXES:
-                file_paths.append((dirpath / filename).relative_to(root))
+                discovered_count += 1
+                yield (dirpath / filename).relative_to(root)
 
-    logger.debug("files_discovered", count=len(file_paths), root=str(root))
-
-    yield from file_paths
+    logger.debug("files_discovered", count=discovered_count, root=str(root))

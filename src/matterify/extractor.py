@@ -89,56 +89,67 @@ def _worker_extract(
     file_str: str,
     compute_hash: bool,
     compute_stats: bool,
+    compute_frontmatter: bool,
 ) -> FileEntry:
     """Worker function for ProcessPoolExecutor.
 
-    Reads the file once and computes stats, and optionally hash.
+    Reads the file only when needed for hash or frontmatter extraction.
 
     Args:
         root_str: Root directory as string.
         file_str: Relative file path as string.
         compute_hash: Whether to compute SHA-256 hash.
         compute_stats: Whether to compute file statistics.
+        compute_frontmatter: Whether to extract YAML frontmatter.
 
     Returns:
         Fully populated FileEntry for the given file.
     """
     file_path = Path(root_str) / file_str
-    try:
-        raw_bytes = file_path.read_bytes()
-    except Exception as exc:
-        return FileEntry(
-            file_path=file_str,
-            frontmatter=None,
-            status="illegal",
-            error=str(exc),
-        )
 
-    content = raw_bytes.decode("utf-8")
-    fm_file_path, frontmatter, status, error = _extract_frontmatter_from_content(content, file_str)
-
-    file_size: int | None = None
-    modified_time: str | None = None
-    access_time: str | None = None
+    file_stats: FileStats | None = None
     file_hash: str | None = None
+    frontmatter: dict[str, object] | None = None
+    status: str
+    error: str | None
+    fm_file_path = file_str
 
     if compute_stats:
         try:
             stat_info = file_path.stat()
-            file_size = stat_info.st_size
-            modified_time = datetime.fromtimestamp(stat_info.st_mtime).isoformat()
-            access_time = datetime.fromtimestamp(stat_info.st_atime).isoformat()
+            file_stats = FileStats(
+                file_size=stat_info.st_size,
+                modified_time=datetime.fromtimestamp(stat_info.st_mtime).isoformat(),
+                access_time=datetime.fromtimestamp(stat_info.st_atime).isoformat(),
+            )
         except OSError:
             pass
 
-    if compute_hash:
-        file_hash = _compute_file_hash(raw_bytes)
+    if compute_frontmatter or compute_hash:
+        try:
+            raw_bytes = file_path.read_bytes()
+        except Exception as exc:
+            return FileEntry(
+                file_path=file_str,
+                frontmatter=None,
+                status="illegal",
+                error=str(exc),
+            )
 
-    file_stats = FileStats(
-        file_size=file_size,
-        modified_time=modified_time,
-        access_time=access_time,
-    )
+        if compute_frontmatter:
+            content = raw_bytes.decode("utf-8")
+            fm_file_path, frontmatter, status, error = _extract_frontmatter_from_content(
+                content, file_str
+            )
+        else:
+            status = "ok"
+            error = None
+
+        if compute_hash:
+            file_hash = _compute_file_hash(raw_bytes)
+    else:
+        status = "ok"
+        error = None
 
     return FileEntry(
         file_path=fm_file_path,
@@ -156,6 +167,7 @@ def scan_directory(
     blacklist: tuple[str, ...] | None = None,
     compute_hash: bool = True,
     compute_stats: bool = True,
+    compute_frontmatter: bool = True,
 ) -> AggregatedResult:
     """Scan directory and aggregate frontmatter using concurrent workers.
 
@@ -165,6 +177,7 @@ def scan_directory(
         blacklist: Directory names to exclude from traversal.
         compute_hash: Whether to compute SHA-256 hash for each file (default: True).
         compute_stats: Whether to compute file stats (size, mtime, atime) (default: True).
+        compute_frontmatter: Whether to extract YAML frontmatter (default: True).
 
     Returns:
         AggregatedResult with metadata and file entries.
@@ -203,11 +216,12 @@ def scan_directory(
 
     if total_files == 0:
         duration = time.perf_counter() - start_time
+        fm_none = None if not compute_frontmatter else 0
         metadata = ScanMetadata(
             source_directory=str(directory),
             total_files=0,
-            files_with_frontmatter=0,
-            files_without_frontmatter=0,
+            files_with_frontmatter=fm_none,
+            files_without_frontmatter=fm_none,
             errors=0,
             scan_duration_seconds=round(duration, 3),
             avg_duration_per_file_ms=0.0,
@@ -223,7 +237,12 @@ def scan_directory(
     with ProcessPoolExecutor(max_workers=max_workers) as executor:
         future_to_path = {
             executor.submit(
-                _worker_extract, str(directory), str(fp), compute_hash, compute_stats
+                _worker_extract,
+                str(directory),
+                str(fp),
+                compute_hash,
+                compute_stats,
+                compute_frontmatter,
             ): fp
             for fp in file_paths
         }
@@ -233,10 +252,14 @@ def scan_directory(
 
     results.sort(key=lambda e: e.file_path)
 
-    files_with_fm = sum(1 for r in results if r.status == "ok")
-    files_without_fm = sum(
-        1 for r in results if r.status == "illegal" and r.error == "no_frontmatter"
-    )
+    if compute_frontmatter:
+        files_with_fm = sum(1 for r in results if r.frontmatter is not None)
+        files_without_fm = sum(
+            1 for r in results if r.status == "illegal" and r.error == "no_frontmatter"
+        )
+    else:
+        files_with_fm = None
+        files_without_fm = None
     errors = sum(1 for r in results if r.status == "illegal" and r.error != "no_frontmatter")
 
     duration = time.perf_counter() - start_time

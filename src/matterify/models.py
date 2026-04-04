@@ -56,8 +56,8 @@ class ScanMetadata:
 
     source_directory: str
     total_files: int
-    files_with_frontmatter: int
-    files_without_frontmatter: int
+    files_with_frontmatter: int | None
+    files_without_frontmatter: int | None
     errors: int
     scan_duration_seconds: float
     avg_duration_per_file_ms: float

@@ -28,7 +28,7 @@ def test_scan_basic(sample_project: Path) -> None:
     assert result.exit_code == 0
     data = json.loads(result.output)
     assert data["metadata"]["total_files"] == 2
-    assert "stats" in data["files"][0]
+    assert data["files"][0]["stats"] is not None
     assert "file_size" not in data["files"][0]
 
 
@@ -47,7 +47,7 @@ def test_scan_with_output(sample_project: Path, tmp_path: Path) -> None:
     assert output.exists()
     data = json.loads(output.read_text(encoding="utf-8"))
     assert data["metadata"]["total_files"] == 2
-    assert "stats" in data["files"][0]
+    assert data["files"][0]["stats"] is not None
     assert "file_size" not in data["files"][0]
 
 
@@ -66,3 +66,13 @@ def test_scan_nonexistent_directory() -> None:
     runner = CliRunner()
     result = runner.invoke(main, ["/nonexistent/path"])
     assert result.exit_code != 0
+
+
+def test_scan_no_frontmatter(sample_project: Path) -> None:
+    runner = CliRunner()
+    result = runner.invoke(main, [str(sample_project), "--no-frontmatter"])
+    assert result.exit_code == 0
+    data = json.loads(result.output)
+    assert data["files"][0]["status"] == "ok"
+    assert data["files"][0]["frontmatter"] is None
+    assert data["metadata"]["files_with_frontmatter"] is None

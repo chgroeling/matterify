@@ -160,7 +160,11 @@ class TestWorkerExtract:
         file_path = tmp_path / "test.md"
         file_path.write_text("---\ntitle: Test\n---\nContent", encoding="utf-8")
         result = _worker_extract(
-            str(tmp_path), str(file_path), compute_hash=True, compute_stats=True
+            str(tmp_path),
+            str(file_path),
+            compute_hash=True,
+            compute_stats=True,
+            compute_frontmatter=True,
         )
         assert isinstance(result, FileEntry)
         assert result.stats is not None
@@ -173,7 +177,11 @@ class TestWorkerExtract:
         file_path = tmp_path / "test.md"
         file_path.write_text("---\ntitle: Test\n---\nContent", encoding="utf-8")
         result = _worker_extract(
-            str(tmp_path), str(file_path), compute_hash=False, compute_stats=True
+            str(tmp_path),
+            str(file_path),
+            compute_hash=False,
+            compute_stats=True,
+            compute_frontmatter=True,
         )
         assert result.file_hash is None
 
@@ -181,17 +189,36 @@ class TestWorkerExtract:
         file_path = tmp_path / "test.md"
         file_path.write_text("---\ntitle: Test\n---\nContent", encoding="utf-8")
         result = _worker_extract(
-            str(tmp_path), str(file_path), compute_hash=False, compute_stats=False
+            str(tmp_path),
+            str(file_path),
+            compute_hash=False,
+            compute_stats=False,
+            compute_frontmatter=True,
         )
-        assert result.stats is not None
-        assert result.stats.file_size is None
-        assert result.stats.modified_time is None
-        assert result.stats.access_time is None
+        assert result.stats is None
         assert result.file_hash is None
+
+    def test_worker_frontmatter_disabled(self, tmp_path: Path) -> None:
+        file_path = tmp_path / "test.md"
+        file_path.write_text("---\ntitle: Test\n---\nContent", encoding="utf-8")
+        result = _worker_extract(
+            str(tmp_path),
+            str(file_path),
+            compute_hash=False,
+            compute_stats=False,
+            compute_frontmatter=False,
+        )
+        assert result.status == "ok"
+        assert result.frontmatter is None
+        assert result.error is None
 
     def test_worker_handles_missing_file(self, tmp_path: Path) -> None:
         result = _worker_extract(
-            str(tmp_path), str(tmp_path / "nonexistent.md"), compute_hash=False, compute_stats=False
+            str(tmp_path),
+            str(tmp_path / "nonexistent.md"),
+            compute_hash=False,
+            compute_stats=False,
+            compute_frontmatter=True,
         )
         assert result.status == "illegal"
         assert result.error is not None
@@ -304,7 +331,27 @@ class TestScanDirectory:
         project.mkdir()
         (project / "test.md").write_text("---\ntitle: Test\n---\nContent", encoding="utf-8")
         result = scan_directory(project, compute_stats=False)
-        assert result.files[0].stats is not None
-        assert result.files[0].stats.file_size is None
-        assert result.files[0].stats.modified_time is None
-        assert result.files[0].stats.access_time is None
+        assert result.files[0].stats is None
+
+    def test_aggregate_frontmatter_disabled(self, tmp_path: Path) -> None:
+        project = tmp_path / "project"
+        project.mkdir()
+        (project / "test.md").write_text("---\ntitle: Test\n---\nContent", encoding="utf-8")
+        result = scan_directory(project, compute_frontmatter=False)
+        assert result.files[0].status == "ok"
+        assert result.files[0].frontmatter is None
+        assert result.files[0].error is None
+        assert result.metadata.files_with_frontmatter is None
+        assert result.metadata.files_without_frontmatter is None
+
+    def test_aggregate_stats_and_frontmatter_disabled(self, tmp_path: Path) -> None:
+        project = tmp_path / "project"
+        project.mkdir()
+        (project / "test.md").write_text("---\ntitle: Test\n---\nContent", encoding="utf-8")
+        result = scan_directory(project, compute_stats=False, compute_frontmatter=False)
+        assert result.files[0].status == "ok"
+        assert result.files[0].frontmatter is None
+        assert result.files[0].error is None
+        assert result.files[0].stats is None
+        assert result.metadata.files_with_frontmatter is None
+        assert result.metadata.files_without_frontmatter is None

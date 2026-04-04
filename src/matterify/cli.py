@@ -54,6 +54,12 @@ logger = get_logger(__name__)
     default=True,
     help="Disable file statistics (size, modified time, access time).",
 )
+@click.option(
+    "--frontmatter/--no-frontmatter",
+    "compute_frontmatter",
+    default=True,
+    help="Disable frontmatter extraction.",
+)
 @click.pass_context
 def main(
     ctx: click.Context,
@@ -65,6 +71,7 @@ def main(
     exclude: tuple[str, ...],
     compute_hash: bool,
     compute_stats: bool,
+    compute_frontmatter: bool,
 ) -> None:
     """Matterify - Extract YAML frontmatter from Markdown files."""
     ctx.ensure_object(dict)
@@ -80,6 +87,7 @@ def main(
         exclude=list(exclude) if exclude else [],
         compute_hash=compute_hash,
         compute_stats=compute_stats,
+        compute_frontmatter=compute_frontmatter,
     )
 
     console: Console = get_console(verbose)
@@ -95,6 +103,7 @@ def main(
         blacklist=exclude,
         compute_hash=compute_hash,
         compute_stats=compute_stats,
+        compute_frontmatter=compute_frontmatter,
     )
 
     result_dict = asdict(result)

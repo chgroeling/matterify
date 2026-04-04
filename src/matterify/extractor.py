@@ -229,6 +229,20 @@ def scan_directory(
         )
         return AggregatedResult(metadata=metadata, files=[])
 
+    if not compute_frontmatter and not compute_hash and not compute_stats:
+        duration = time.perf_counter() - start_time
+        metadata = ScanMetadata(
+            source_directory=str(directory),
+            total_files=total_files,
+            files_with_frontmatter=None,
+            files_without_frontmatter=None,
+            errors=0,
+            scan_duration_seconds=round(duration, 3),
+            avg_duration_per_file_ms=0.0,
+            throughput_files_per_second=0.0,
+        )
+        return AggregatedResult(metadata=metadata, files=[])
+
     max_workers = min(total_files, effective_n_procs)
     logger.debug("worker_pool_initialized", max_workers=max_workers)
 

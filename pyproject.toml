@@ -1,0 +1,71 @@
+[project]
+name = "matterify"
+version = "0.1.0"
+description = "Extract and aggregate YAML frontmatter from Markdown files into structured JSON"
+authors = [
+    { name = "Christian Gröling", email = "contact@christiangroeling.de" }
+]
+requires-python = ">=3.12"
+dependencies = [
+    "click>=8.1.0",
+    "rich>=13.0.0",
+    "structlog>=24.0.0",
+    "pyyaml>=6.0",
+]
+
+[project.scripts]
+matterify = "matterify.cli:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[dependency-groups]
+dev = [
+    "ruff>=0.4.0",
+    "mypy>=1.10.0",
+    "pytest>=8.0.0",
+    "pytest-benchmark>=4.0.0",
+    "pytest-asyncio>=0.23.0",
+    "types-pyyaml>=6.0.12.20250915",
+]
+docs = [
+    "mkdocs>=1.5.0",
+    "mkdocs-material>=9.0.0",
+]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+
+[tool.ruff.lint]
+select = [
+    "E",    # pycodestyle errors
+    "F",    # pyflakes
+    "I",    # isort
+    "UP",   # pyupgrade
+    "B",    # flake8-bugbear
+    "SIM",  # flake8-simplify
+    "PTH",  # flake8-use-pathlib
+    "ASYNC",# flake8-async
+    "TC",   # flake8-type-checking
+    "RUF",  # ruff-specific
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["matterify"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+
+[[tool.mypy.overrides]]
+module = ["tests.*"]
+strict = false
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"

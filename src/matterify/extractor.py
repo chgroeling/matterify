@@ -154,6 +154,18 @@ def scan_directory(
 
     Returns:
         AggregatedResult with metadata and file entries.
+
+    Example:
+        ```python
+        >>> from pathlib import Path
+        >>> result = scan_directory(Path("./docs"))
+        >>> result.metadata.total_files
+        5
+        >>> result.files[0].file_path
+        'getting-started.md'
+        >>> result.files[0].frontmatter
+        {'title': 'Getting Started', 'version': '1.0.0'}
+        ```
     """
     from matterify.constants import BLACKLIST
     from matterify.scanner import iter_markdown_files

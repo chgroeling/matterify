@@ -101,36 +101,29 @@ matterify/
 
 ### Public Functions
 - `extract_frontmatter(file_path: Path) -> FrontmatterEntry`: Extract YAML frontmatter from a single Markdown file.
-- `aggregate_frontmatter(directory: Path, n_procs: int = 4, blacklist: tuple[str, ...] | None = None) -> dict[str, object]`: Scan directory and aggregate frontmatter using parallel workers. Returns a dictionary with `metadata` and `files` keys.
+- `scan_directory(directory: Path, n_procs: int = 4, blacklist: tuple[str, ...] | None = None) -> AggregatedResult`: Scan directory and aggregate frontmatter using parallel workers. Returns an `AggregatedResult` dataclass.
 - `iter_markdown_files(root: Path, blacklist: tuple[str, ...] = BLACKLIST) -> Iterable[Path]`: Yield Markdown files in directory.
-- `_aggregate_dataclass(...) -> AggregatedResult`: Internal API returning dataclass (used by CLI).
 
-### Dict Structure
-The dictionary returned by `aggregate_frontmatter()` has the following structure:
+### AggregatedResult Structure
+The `scan_directory()` function returns an `AggregatedResult` dataclass:
 ```python
 {
-    "metadata": {
-        "source_directory": str,
-        "total_files": int,
-        "files_with_frontmatter": int,
-        "files_without_frontmatter": int,
-        "errors": int,
-        "scan_duration_seconds": float,
-        "avg_duration_per_file_ms": float,
-        "throughput_files_per_second": float,
-    },
-    "files": [
-        {
-            "file_path": str,
-            "frontmatter": dict | None,
-            "status": str,
-            "error": str | None,
-            "file_size": int | None,
-            "modified_time": str | None,
-            "access_time": str | None,
-        },
-        ...
-    ]
+    "metadata": ScanMetadata(...),
+    "files": list[FrontmatterEntry]
+}
+```
+
+Where `ScanMetadata` contains:
+```python
+{
+    "source_directory": str,
+    "total_files": int,
+    "files_with_frontmatter": int,
+    "files_without_frontmatter": int,
+    "errors": int,
+    "scan_duration_seconds": float,
+    "avg_duration_per_file_ms": float,
+    "throughput_files_per_second": float,
 }
 ```
 
@@ -189,7 +182,7 @@ matterify DIRECTORY [OPTIONS]
 
 ### Extraction Pipeline
 1. `iter_markdown_files()` discovers all `.md`/`.markdown` files, respecting blacklist.
-2. `aggregate_frontmatter()` distributes files across `ProcessPoolExecutor` workers.
+2. `scan_directory()` distributes files across `ProcessPoolExecutor` workers.
 3. Each worker runs `extract_frontmatter()` which:
    - Reads file content as UTF-8
    - Checks for `---` delimiters

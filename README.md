@@ -56,7 +56,7 @@ matterify ./docs --verbose
 from pathlib import Path
 from matterify import (
     extract_frontmatter,
-    aggregate_frontmatter,
+    scan_directory,
     iter_markdown_files,
 )
 ```
@@ -75,45 +75,56 @@ print(entry.frontmatter) # {"title": "Read Me", ...}
 print(entry.status)      # "ok" or "illegal"
 ```
 
-#### aggregate_frontmatter
+#### scan_directory
 
-Scan directory and aggregate frontmatter using parallel workers.
+Scan directory and aggregate frontmatter using parallel workers. Returns an `AggregatedResult` dataclass.
 
 ```python
 from pathlib import Path
-from matterify import aggregate_frontmatter
+from matterify import scan_directory
 
-result = aggregate_frontmatter(Path("./docs"))
+result = scan_directory(Path("./docs"))
 
-# Returns a dictionary with metadata and files keys:
-# {
-#     "metadata": {
-#         "source_directory": str,
-#         "total_files": int,
-#         "files_with_frontmatter": int,
-#         "files_without_frontmatter": int,
-#         "errors": int,
-#         "scan_duration_seconds": float,
-#         "avg_duration_per_file_ms": float,
-#         "throughput_files_per_second": float,
-#     },
-#     "files": [
-#         {
-#             "file_path": str,
-#             "frontmatter": dict | None,
-#             "status": str,
-#             "error": str | None,
-#             "file_size": int | None,
-#             "modified_time": str | None,
-#             "access_time": str | None,
-#         },
-#         ...
-#     ]
-# }
+# AggregatedResult contains:
+# - result.metadata: ScanMetadata with scan statistics
+# - result.files: list[FrontmatterEntry] with extraction results
+
+# Access metadata
+print(result.metadata.total_files)
+print(result.metadata.files_with_frontmatter)
+print(result.metadata.scan_duration_seconds)
+
+# Access files
+for entry in result.files:
+    print(entry.file_path, entry.status)
 
 # Output to JSON file
 import json
-Path("output.json").write_text(json.dumps(result, indent=2))
+output = {
+    "metadata": {
+        "source_directory": result.metadata.source_directory,
+        "total_files": result.metadata.total_files,
+        "files_with_frontmatter": result.metadata.files_with_frontmatter,
+        "files_without_frontmatter": result.metadata.files_without_frontmatter,
+        "errors": result.metadata.errors,
+        "scan_duration_seconds": result.metadata.scan_duration_seconds,
+        "avg_duration_per_file_ms": result.metadata.avg_duration_per_file_ms,
+        "throughput_files_per_second": result.metadata.throughput_files_per_second,
+    },
+    "files": [
+        {
+            "file_path": e.file_path,
+            "frontmatter": e.frontmatter,
+            "status": e.status,
+            "error": e.error,
+            "file_size": e.file_size,
+            "modified_time": e.modified_time,
+            "access_time": e.access_time,
+        }
+        for e in result.files
+    ],
+}
+Path("output.json").write_text(json.dumps(output, indent=2))
 ```
 
 #### iter_markdown_files
@@ -158,7 +169,7 @@ print(BLACKLIST)  # (".git", ".obsidian", ...)
 
 ## JSON Output Structure
 
-When using CLI with `--output` or calling `aggregate_frontmatter()`:
+When using CLI with `--output`:
 
 ```json
 {

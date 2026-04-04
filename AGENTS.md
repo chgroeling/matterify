@@ -11,6 +11,8 @@ matterify/
 ├── src/matterify/                            # Source (src-layout)
 │   ├── __init__.py                           # Metadata + public API entry points
 │   ├── extractor.py                          # Frontmatter extraction & aggregation logic
+│   ├── models.py                             # Frozen dataclasses (FrontmatterEntry, ScanMetadata, AggregatedResult)
+│   ├── scanner.py                           # Directory traversal with blacklist filtering
 │   ├── cli.py                                # Click CLI entry point
 │   ├── logging.py                            # Debug & console config
 │   └── utils/                                # Utility modules
@@ -96,10 +98,52 @@ matterify/
 - **`asyncio.to_thread`:** Pass bound methods directly: `asyncio.to_thread(path.read_text, encoding="utf-8")`. Avoid lambdas to preserve return-type inference.
 
 ## Python API
-<!-- To be defined as the project evolves -->
+
+### Public Functions
+- `extract_frontmatter(file_path: Path) -> FrontmatterEntry`: Extract YAML frontmatter from a single Markdown file.
+- `aggregate_frontmatter(directory: Path, n_procs: int = 4) -> AggregatedResult`: Scan directory and aggregate frontmatter using parallel workers.
+- `export_json(result: AggregatedResult, output: Path) -> Path`: Serialize aggregated result to JSON file.
+- `iter_markdown_files(root: Path, blacklist: tuple[str, ...] = BLACKLIST) -> Iterable[Path]`: Yield Markdown files in directory.
+
+### Public Types
+- `FrontmatterEntry`: Dataclass representing extracted frontmatter from a single file.
+- `ScanMetadata`: Dataclass containing summary statistics about a scan.
+- `AggregatedResult`: Dataclass holding metadata and file entries.
+- `BLACKLIST`: Tuple of directory names excluded from scanning (`.git`, `.obsidian`, `__pycache__`, `.venv`, `venv`, `node_modules`, `.mypy_cache`, `.pytest_cache`, `.ruff_cache`).
+
+### Status Values
+- `ok`: File successfully parsed with valid YAML frontmatter.
+- `illegal`: File has issues (no frontmatter, invalid YAML, or parse errors).
 
 ## CLI
-<!-- To be defined as the project evolves -->
+
+### Commands
+
+#### `matterify scan`
+Scan a directory for Markdown files and extract frontmatter.
+
+**Arguments:**
+- `directory`: Directory to scan (required).
+
+**Options:**
+- `--output`, `-o`: Write JSON to file instead of stdout.
+- `--n-procs`: Worker process count (default: 4).
+- `--verbose`, `-v`: Show progress and summary.
+
+#### `matterify export`
+Export aggregated frontmatter to a JSON file. (Alias for `scan` with required output).
+
+**Arguments:**
+- `directory`: Directory to scan (required).
+
+**Options:**
+- `--output`, `-o`: Output JSON file path (required).
+- `--n-procs`: Worker process count (default: 4).
+- `--verbose`, `-v`: Show progress and summary.
+
+### Global Options
+- `--debug`: Enable debug logging.
+- `--version`: Show version information.
 
 ## Logging & UI (`src/matterify/logging.py`)
 - `configure_debug_logging(enabled)`: Configures `structlog`. Use `logging.CRITICAL` (50) for no-op. **Avoid `logging.CRITICAL + 1`** (causes `KeyError`).
@@ -110,10 +154,35 @@ matterify/
 - **Context**: Use kwargs: `logger.debug("msg", k=v)`. **Never** `extra={...}` (crashes on reserved keys like `name`).
 
 ### Established log fields
-<!-- To be defined as the project evolves -->
+- `total_files`: Total number of Markdown files discovered.
+- `with_frontmatter`: Count of files with valid frontmatter.
+- `errors`: Count of files that produced errors.
+- `duration`: Total scan duration in seconds.
+- `output`: Path to the exported JSON file.
 
 ## Architecture & Mechanisms
-<!-- To be defined as the project evolves -->
+
+### Module Overview
+- `extractor.py`: Core extraction logic - parsing YAML frontmatter, parallel processing with `ProcessPoolExecutor`, JSON export.
+- `scanner.py`: Directory traversal with blacklist filtering using `Path.walk()`.
+- `models.py`: Frozen dataclasses for type-safe data structures.
+- `logging.py`: `structlog` configuration and `rich.Console` factory.
+- `cli.py`: Click-based CLI with `scan` and `export` commands.
+
+### Extraction Pipeline
+1. `iter_markdown_files()` discovers all `.md`/`.markdown` files, respecting blacklist.
+2. `aggregate_frontmatter()` distributes files across `ProcessPoolExecutor` workers.
+3. Each worker runs `extract_frontmatter()` which:
+   - Reads file content as UTF-8
+   - Checks for `---` delimiters
+   - Parses YAML block with `yaml.safe_load`
+   - Validates frontmatter is a dictionary
+   - Serializes `datetime`/`date` objects to ISO strings
+4. Results are sorted, deduplicated relative to root, and aggregated.
+
+### File Status Classification
+- `ok`: Valid YAML frontmatter found and parsed.
+- `illegal`: No frontmatter, invalid YAML, or parse error.
 
 ## Docstring Rules
 - **Format:** Google Style (`Args:`, `Returns:`, `Raises:`).

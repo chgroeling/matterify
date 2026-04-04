@@ -1,140 +1,234 @@
 """Frontmatter extraction and aggregation logic."""
 
-import asyncio
 import json
+import time
+from concurrent.futures import ProcessPoolExecutor, as_completed
+from datetime import date, datetime
 from pathlib import Path
-from typing import Any
+from typing import cast
 
 import yaml
 from structlog import get_logger
 
+from matterify.models import AggregatedResult, FrontmatterEntry, ScanMetadata
+
 logger = get_logger(__name__)
 
-type FrontmatterDict = dict[str, Any]
-type FileEntry = dict[str, Any]
-type AggregatedResult = dict[str, Any]
+
+def _serialize_datetime(
+    value: dict[str, object] | list[object] | object,
+) -> dict[str, object] | list[object] | object:
+    """Recursively convert datetime/date objects to ISO strings."""
+    if isinstance(value, datetime):
+        return value.isoformat()
+    if isinstance(value, date):
+        return value.isoformat()
+    if isinstance(value, dict):
+        return {k: _serialize_datetime(v) for k, v in value.items()}
+    if isinstance(value, list):
+        return [_serialize_datetime(item) for item in value]
+    return value
 
 
-async def extract_frontmatter(file_path: Path) -> FrontmatterDict | None:
-    """Extract YAML frontmatter from a Markdown file.
+def extract_frontmatter(file_path: Path) -> FrontmatterEntry:
+    """Extract and validate YAML frontmatter from a Markdown file.
 
     Args:
         file_path: Path to the Markdown file.
 
     Returns:
-        Parsed frontmatter as a dictionary, or None if no frontmatter found.
+        FrontmatterEntry with status "ok" or "illegal".
     """
-    content = await asyncio.to_thread(file_path.read_text, encoding="utf-8")
-    content = content.strip()
+    try:
+        content = file_path.read_text(encoding="utf-8").strip()
+    except Exception as exc:
+        return FrontmatterEntry(
+            file_path=str(file_path),
+            frontmatter=None,
+            status="illegal",
+            error=str(exc),
+        )
 
     if not content.startswith("---"):
-        logger.debug("no_frontmatter", file=str(file_path))
-        return None
+        return FrontmatterEntry(
+            file_path=str(file_path),
+            frontmatter=None,
+            status="illegal",
+            error="no_frontmatter",
+        )
 
     parts = content.split("---", 2)
     if len(parts) < 3:
-        logger.debug("invalid_frontmatter", file=str(file_path))
-        return None
+        return FrontmatterEntry(
+            file_path=str(file_path),
+            frontmatter=None,
+            status="illegal",
+            error="no_frontmatter",
+        )
 
     yaml_block = parts[1]
     try:
         data = yaml.safe_load(yaml_block)
-        if not isinstance(data, dict):
-            logger.debug("non_dict_frontmatter", file=str(file_path))
-            return None
-        logger.debug("extracted_frontmatter", file=str(file_path))
-        return data
-    except yaml.YAMLError as exc:
-        logger.warning("yaml_parse_error", file=str(file_path), error=str(exc))
-        return None
+    except yaml.YAMLError:
+        return FrontmatterEntry(
+            file_path=str(file_path),
+            frontmatter=None,
+            status="illegal",
+            error="yaml_parse_error",
+        )
+
+    if not isinstance(data, dict):
+        return FrontmatterEntry(
+            file_path=str(file_path),
+            frontmatter=None,
+            status="illegal",
+            error="non_dict_frontmatter",
+        )
+
+    data = _serialize_datetime(data)
+    serialized = cast("dict[str, object] | None", data)
+
+    return FrontmatterEntry(
+        file_path=str(file_path),
+        frontmatter=serialized,
+        status="ok",
+        error=None,
+    )
 
 
-async def scan_markdown_files(directory: Path) -> list[Path]:
-    """Recursively find all Markdown files in a directory.
+def _worker_extract(root_str: str, file_str: str) -> FrontmatterEntry:
+    """Worker function for ProcessPoolExecutor.
+
+    Args:
+        root_str: Root directory as string (unused, kept for future extension).
+        file_str: Absolute file path as string.
+
+    Returns:
+        FrontmatterEntry for the given file.
+    """
+    return extract_frontmatter(Path(file_str))
+
+
+def aggregate_frontmatter(
+    directory: Path,
+    n_procs: int = 4,
+) -> AggregatedResult:
+    """Scan directory and aggregate frontmatter using concurrent workers.
 
     Args:
         directory: Root directory to scan.
+        n_procs: Worker process count (capped at file count).
 
     Returns:
-        Sorted list of Markdown file paths.
+        AggregatedResult with metadata and file entries.
     """
+    from matterify.scanner import iter_markdown_files
 
-    def _scan() -> list[Path]:
-        return sorted(
-            p for p in directory.rglob("*") if p.is_file() and p.suffix in {".md", ".markdown"}
+    start_time = time.perf_counter()
+    file_paths = list(iter_markdown_files(directory))
+    total_files = len(file_paths)
+
+    if total_files == 0:
+        duration = time.perf_counter() - start_time
+        metadata = ScanMetadata(
+            source_directory=str(directory),
+            total_files=0,
+            files_with_frontmatter=0,
+            files_without_frontmatter=0,
+            errors=0,
+            scan_duration_seconds=round(duration, 3),
+            avg_duration_per_file_ms=0.0,
         )
+        return AggregatedResult(metadata=metadata, files=[])
 
-    files = await asyncio.to_thread(_scan)
-    logger.debug("scanned_markdown_files", directory=str(directory), count=len(files))
-    return files
+    max_workers = min(total_files, n_procs)
+    results: list[FrontmatterEntry] = []
 
+    with ProcessPoolExecutor(max_workers=max_workers) as executor:
+        future_to_path = {
+            executor.submit(_worker_extract, str(directory), str(fp)): fp for fp in file_paths
+        }
+        for future in as_completed(future_to_path):
+            entry = future.result()
+            try:
+                rel_path = str(Path(entry.file_path).relative_to(directory))
+            except ValueError:
+                rel_path = entry.file_path
+            results.append(
+                FrontmatterEntry(
+                    file_path=rel_path,
+                    frontmatter=entry.frontmatter,
+                    status=entry.status,
+                    error=entry.error,
+                )
+            )
 
-async def aggregate_frontmatter(
-    directory: Path,
-) -> AggregatedResult:
-    """Scan directory and aggregate all frontmatter into a structured result.
+    results.sort(key=lambda e: e.file_path)
 
-    Args:
-        directory: Root directory to scan for Markdown files.
+    files_with_fm = sum(1 for r in results if r.status == "ok")
+    files_without_fm = sum(
+        1 for r in results if r.status == "illegal" and r.error == "no_frontmatter"
+    )
+    errors = sum(1 for r in results if r.status == "illegal" and r.error != "no_frontmatter")
 
-    Returns:
-        Dictionary containing aggregated frontmatter data with metadata
-        about the scan operation.
-    """
-    files = await scan_markdown_files(directory)
-    results: list[FileEntry] = []
-    errors: list[dict[str, str]] = []
+    duration = time.perf_counter() - start_time
+    avg_ms = (duration / total_files * 1000) if total_files > 0 else 0.0
 
-    for file_path in files:
-        try:
-            frontmatter = await extract_frontmatter(file_path)
-            relative_path = str(file_path.relative_to(directory))
-            entry: FileEntry = {
-                "file": relative_path,
-                "frontmatter": frontmatter,
-            }
-            results.append(entry)
-        except Exception as exc:
-            errors.append({"file": str(file_path), "error": str(exc)})
-            logger.error("file_processing_error", file=str(file_path), error=str(exc))
-
-    result: AggregatedResult = {
-        "metadata": {
-            "source_directory": str(directory),
-            "total_files": len(files),
-            "files_with_frontmatter": sum(1 for r in results if r["frontmatter"] is not None),
-            "errors": len(errors),
-        },
-        "files": results,
-    }
-
-    if errors:
-        result["errors"] = errors
+    metadata = ScanMetadata(
+        source_directory=str(directory),
+        total_files=total_files,
+        files_with_frontmatter=files_with_fm,
+        files_without_frontmatter=files_without_fm,
+        errors=errors,
+        scan_duration_seconds=round(duration, 3),
+        avg_duration_per_file_ms=round(avg_ms, 1),
+    )
 
     logger.info(
         "aggregation_complete",
-        total_files=len(files),
-        with_frontmatter=result["metadata"]["files_with_frontmatter"],
-        errors=len(errors),
+        total_files=total_files,
+        with_frontmatter=files_with_fm,
+        errors=errors,
+        duration=round(duration, 3),
     )
-    return result
+
+    return AggregatedResult(metadata=metadata, files=results)
 
 
-async def export_json(
-    directory: Path,
+def export_json(
+    result: AggregatedResult,
     output: Path,
 ) -> Path:
-    """Aggregate frontmatter and export to a JSON file.
+    """Serialize AggregatedResult to JSON file.
 
     Args:
-        directory: Root directory to scan for Markdown files.
+        result: Aggregated result to serialize.
         output: Destination path for the JSON output file.
 
     Returns:
-        Path to the written JSON file.
+        Path to the written file.
     """
-    result = await aggregate_frontmatter(directory)
-    json_content = json.dumps(result, indent=2, ensure_ascii=False)
-    await asyncio.to_thread(output.write_text, json_content, encoding="utf-8")
+    data = {
+        "metadata": {
+            "source_directory": result.metadata.source_directory,
+            "total_files": result.metadata.total_files,
+            "files_with_frontmatter": result.metadata.files_with_frontmatter,
+            "files_without_frontmatter": result.metadata.files_without_frontmatter,
+            "errors": result.metadata.errors,
+            "scan_duration_seconds": result.metadata.scan_duration_seconds,
+            "avg_duration_per_file_ms": result.metadata.avg_duration_per_file_ms,
+        },
+        "files": [
+            {
+                "file_path": entry.file_path,
+                "frontmatter": entry.frontmatter,
+                "status": entry.status,
+                "error": entry.error,
+            }
+            for entry in result.files
+        ],
+    }
+    json_content = json.dumps(data, indent=2, ensure_ascii=False)
+    output.write_text(json_content, encoding="utf-8")
     logger.info("json_exported", output=str(output))
     return output

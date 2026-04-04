@@ -4,8 +4,14 @@ Extract and aggregate YAML frontmatter from Markdown files.
 
 [![Python version](https://img.shields.io/badge/python-3.12+-blue.svg)](https://www.python.org/downloads/)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+[![PyPI](https://img.shields.io/pypi/v/matterify.svg)](https://pypi.org/project/matterify/)
 
-A Python utility that recursively scans directory structures for Markdown files, extracts their embedded YAML frontmatter metadata, and aggregates all information into a structured format for further processing.
+## Quick Start
+
+```bash
+pip install matterify
+matterify ./docs -o output.json
+```
 
 ## Installation
 

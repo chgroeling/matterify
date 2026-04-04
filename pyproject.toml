@@ -2,6 +2,7 @@
 name = "matterify"
 version = "0.1.0"
 description = "Extract and aggregate YAML frontmatter from Markdown files into structured JSON"
+readme = "README.md"
 authors = [
     { name = "Christian Gröling", email = "contact@christiangroeling.de" }
 ]
@@ -12,6 +13,16 @@ dependencies = [
     "structlog>=24.0.0",
     "pyyaml>=6.0",
 ]
+classifiers = [
+    "Programming Language :: Python :: 3.12",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+
+[project.urls]
+Homepage = "https://github.com/chgroeling/matterify"
+Repository = "https://github.com/chgroeling/matterify"
+
 
 [project.scripts]
 matterify = "matterify.cli:main"

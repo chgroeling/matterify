@@ -6,13 +6,13 @@ import time
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from datetime import date, datetime
 from pathlib import Path
-from typing import TypedDict, cast
+from typing import cast
 
 import yaml
 from structlog import get_logger
 
 from matterify.constants import DEFAULT_N_PROCS
-from matterify.models import AggregatedResult, FileEntry, ScanMetadata
+from matterify.models import AggregatedResult, FileEntry, FileStats, ScanMetadata
 
 logger = get_logger(__name__)
 
@@ -94,40 +94,6 @@ def _extract_frontmatter_from_content(
     )
 
 
-class _FileStats(TypedDict):
-    file_size: int | None
-    modified_time: str | None
-    access_time: str | None
-
-
-def _get_file_stats(file_path: Path) -> _FileStats:
-    """Get file statistics (size, modified time, access time).
-
-    Args:
-        file_path: Path to the file.
-
-    Returns:
-        Dictionary with file_size, modified_time, access_time.
-    """
-    file_size: int | None = None
-    modified_time: str | None = None
-    access_time: str | None = None
-
-    try:
-        stat_info = file_path.stat()
-        file_size = stat_info.st_size
-        modified_time = datetime.fromtimestamp(stat_info.st_mtime).isoformat()
-        access_time = datetime.fromtimestamp(stat_info.st_atime).isoformat()
-    except OSError:
-        pass
-
-    return {
-        "file_size": file_size,
-        "modified_time": modified_time,
-        "access_time": access_time,
-    }
-
-
 def _compute_file_hash(content: bytes) -> str | None:
     """Compute SHA-256 hash of file content.
 
@@ -175,22 +141,37 @@ def _worker_extract(
 
     content = raw_bytes.decode("utf-8")
     entry = _extract_frontmatter_from_content(content, str(file_path))
-    stats = (
-        _get_file_stats(file_path)
-        if compute_stats
-        else {"file_size": None, "modified_time": None, "access_time": None}
+
+    file_size: int | None = None
+    modified_time: str | None = None
+    access_time: str | None = None
+    file_hash: str | None = None
+
+    if compute_stats:
+        try:
+            stat_info = file_path.stat()
+            file_size = stat_info.st_size
+            modified_time = datetime.fromtimestamp(stat_info.st_mtime).isoformat()
+            access_time = datetime.fromtimestamp(stat_info.st_atime).isoformat()
+        except OSError:
+            pass
+
+    if compute_hash:
+        file_hash = _compute_file_hash(raw_bytes)
+
+    file_stats = FileStats(
+        file_size=file_size,
+        modified_time=modified_time,
+        access_time=access_time,
+        file_hash=file_hash,
     )
-    file_hash = _compute_file_hash(raw_bytes) if compute_hash else None
 
     return FileEntry(
         file_path=entry.file_path,
         frontmatter=entry.frontmatter,
         status=entry.status,
         error=entry.error,
-        file_size=stats["file_size"],
-        modified_time=stats["modified_time"],
-        access_time=stats["access_time"],
-        file_hash=file_hash,
+        stats=file_stats,
     )
 
 
@@ -283,10 +264,7 @@ def scan_directory(
                     frontmatter=entry.frontmatter,
                     status=entry.status,
                     error=entry.error,
-                    file_size=entry.file_size,
-                    modified_time=entry.modified_time,
-                    access_time=entry.access_time,
-                    file_hash=entry.file_hash,
+                    stats=entry.stats,
                 )
             )
 

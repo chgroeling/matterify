@@ -120,10 +120,10 @@ def main(
                 "frontmatter": entry.frontmatter,
                 "status": entry.status,
                 "error": entry.error,
-                "file_size": entry.file_size,
-                "modified_time": entry.modified_time,
-                "access_time": entry.access_time,
-                "file_hash": entry.file_hash,
+                "file_size": entry.stats.file_size if entry.stats else None,
+                "modified_time": entry.stats.modified_time if entry.stats else None,
+                "access_time": entry.stats.access_time if entry.stats else None,
+                "file_hash": entry.stats.file_hash if entry.stats else None,
             }
             for entry in result.files
         ],

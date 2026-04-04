@@ -143,14 +143,15 @@ def _compute_file_hash(content: bytes) -> str | None:
         return None
 
 
-def _worker_extract(root_str: str, file_str: str) -> FrontmatterEntry:
+def _worker_extract(root_str: str, file_str: str, compute_hash: bool) -> FrontmatterEntry:
     """Worker function for ProcessPoolExecutor.
 
-    Reads the file once and computes hash, stats, and frontmatter.
+    Reads the file once and computes stats, and optionally hash.
 
     Args:
         root_str: Root directory as string (unused, kept for future extension).
         file_str: Absolute file path as string.
+        compute_hash: Whether to compute SHA-256 hash.
 
     Returns:
         Fully populated FrontmatterEntry for the given file.
@@ -169,7 +170,7 @@ def _worker_extract(root_str: str, file_str: str) -> FrontmatterEntry:
     content = raw_bytes.decode("utf-8")
     entry = _extract_frontmatter_from_content(content, str(file_path))
     stats = _get_file_stats(file_path)
-    file_hash = _compute_file_hash(raw_bytes)
+    file_hash = _compute_file_hash(raw_bytes) if compute_hash else None
 
     return FrontmatterEntry(
         file_path=entry.file_path,
@@ -252,7 +253,8 @@ def scan_directory(
 
     with ProcessPoolExecutor(max_workers=max_workers) as executor:
         future_to_path = {
-            executor.submit(_worker_extract, str(directory), str(fp)): fp for fp in file_paths
+            executor.submit(_worker_extract, str(directory), str(fp), compute_hash): fp
+            for fp in file_paths
         }
         for future in as_completed(future_to_path):
             entry = future.result()
@@ -270,7 +272,7 @@ def scan_directory(
                     file_size=entry.file_size,
                     modified_time=entry.modified_time,
                     access_time=entry.access_time,
-                    file_hash=entry.file_hash if compute_hash else None,
+                    file_hash=entry.file_hash,
                 )
             )
 

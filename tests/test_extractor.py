@@ -153,15 +153,23 @@ class TestWorkerExtract:
     def test_worker_returns_complete_entry(self, tmp_path: Path) -> None:
         file_path = tmp_path / "test.md"
         file_path.write_text("---\ntitle: Test\n---\nContent", encoding="utf-8")
-        result = _worker_extract(str(tmp_path), str(file_path))
+        result = _worker_extract(str(tmp_path), str(file_path), compute_hash=True)
         assert isinstance(result, FrontmatterEntry)
         assert result.file_size is not None
         assert result.modified_time is not None
         assert result.access_time is not None
         assert result.file_hash is not None
 
+    def test_worker_hash_disabled(self, tmp_path: Path) -> None:
+        file_path = tmp_path / "test.md"
+        file_path.write_text("---\ntitle: Test\n---\nContent", encoding="utf-8")
+        result = _worker_extract(str(tmp_path), str(file_path), compute_hash=False)
+        assert result.file_hash is None
+
     def test_worker_handles_missing_file(self, tmp_path: Path) -> None:
-        result = _worker_extract(str(tmp_path), str(tmp_path / "nonexistent.md"))
+        result = _worker_extract(
+            str(tmp_path), str(tmp_path / "nonexistent.md"), compute_hash=False
+        )
         assert result.status == "illegal"
         assert result.error is not None
 

@@ -78,7 +78,8 @@ class TestIterMarkdownFiles:
         assert len(files) == 1
         assert files[0].name == "keep.md"
 
-    def test_returns_absolute_paths(self, tmp_path: Path) -> None:
+    def test_returns_relative_paths(self, tmp_path: Path) -> None:
         (tmp_path / "test.md").write_text("# Test", encoding="utf-8")
         files = list(iter_markdown_files(tmp_path))
-        assert files[0].is_absolute()
+        assert not files[0].is_absolute()
+        assert files[0] == Path("test.md")

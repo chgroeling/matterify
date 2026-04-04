@@ -120,27 +120,27 @@ def _worker_extract(
     Reads the file once and computes stats, and optionally hash.
 
     Args:
-        root_str: Root directory as string (unused, kept for future extension).
-        file_str: Absolute file path as string.
+        root_str: Root directory as string.
+        file_str: Relative file path as string.
         compute_hash: Whether to compute SHA-256 hash.
         compute_stats: Whether to compute file statistics.
 
     Returns:
         Fully populated FileEntry for the given file.
     """
-    file_path = Path(file_str)
+    file_path = Path(root_str) / file_str
     try:
         raw_bytes = file_path.read_bytes()
     except Exception as exc:
         return FileEntry(
-            file_path=str(file_path),
+            file_path=file_str,
             frontmatter=None,
             status="illegal",
             error=str(exc),
         )
 
     content = raw_bytes.decode("utf-8")
-    entry = _extract_frontmatter_from_content(content, str(file_path))
+    entry = _extract_frontmatter_from_content(content, file_str)
 
     file_size: int | None = None
     modified_time: str | None = None
@@ -253,20 +253,7 @@ def scan_directory(
         }
         for future in as_completed(future_to_path):
             entry = future.result()
-            try:
-                rel_path = str(Path(entry.file_path).relative_to(directory))
-            except ValueError:
-                rel_path = entry.file_path
-
-            results.append(
-                FileEntry(
-                    file_path=rel_path,
-                    frontmatter=entry.frontmatter,
-                    status=entry.status,
-                    error=entry.error,
-                    stats=entry.stats,
-                )
-            )
+            results.append(entry)
 
     results.sort(key=lambda e: e.file_path)
 

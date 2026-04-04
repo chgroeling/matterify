@@ -16,7 +16,7 @@ def iter_markdown_files(
     root: Path,
     blacklist: tuple[str, ...] = BLACKLIST,
 ) -> Iterable[Path]:
-    """Yield absolute paths to Markdown files under root.
+    """Yield relative paths to Markdown files under root.
 
     Recursively walks the directory tree, pruning blacklisted directories
     in-place to avoid unnecessary I/O.
@@ -26,7 +26,7 @@ def iter_markdown_files(
         blacklist: Directory names to exclude from traversal.
 
     Yields:
-        Absolute paths to discovered Markdown files.
+        Relative paths to discovered Markdown files.
     """
     logger.debug("starting_directory_traversal", root=str(root), blacklist=blacklist)
 
@@ -36,7 +36,7 @@ def iter_markdown_files(
         for filename in filenames:
             suffix = Path(filename).suffix.lower()
             if suffix in _MARKDOWN_SUFFIXES:
-                file_paths.append(dirpath / filename)
+                file_paths.append((dirpath / filename).relative_to(root))
 
     logger.debug("files_discovered", count=len(file_paths), root=str(root))
 

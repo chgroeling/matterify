@@ -12,7 +12,7 @@ import yaml
 from structlog import get_logger
 
 from matterify.constants import DEFAULT_N_PROCS
-from matterify.models import AggregatedResult, FrontmatterEntry, ScanMetadata
+from matterify.models import AggregatedResult, FileEntry, ScanMetadata
 
 logger = get_logger(__name__)
 
@@ -35,7 +35,7 @@ def _serialize_datetime(
 def _extract_frontmatter_from_content(
     content: str,
     file_path_str: str,
-) -> FrontmatterEntry:
+) -> FileEntry:
     """Extract and validate YAML frontmatter from file content.
 
     Args:
@@ -43,12 +43,12 @@ def _extract_frontmatter_from_content(
         file_path_str: The file path as a string for the entry.
 
     Returns:
-        FrontmatterEntry with status "ok" or "illegal".
+        FileEntry with status "ok" or "illegal".
     """
     content = content.strip()
 
     if not content.startswith("---"):
-        return FrontmatterEntry(
+        return FileEntry(
             file_path=file_path_str,
             frontmatter=None,
             status="illegal",
@@ -57,7 +57,7 @@ def _extract_frontmatter_from_content(
 
     parts = content.split("---", 2)
     if len(parts) < 3:
-        return FrontmatterEntry(
+        return FileEntry(
             file_path=file_path_str,
             frontmatter=None,
             status="illegal",
@@ -68,7 +68,7 @@ def _extract_frontmatter_from_content(
     try:
         data = yaml.safe_load(yaml_block)
     except yaml.YAMLError:
-        return FrontmatterEntry(
+        return FileEntry(
             file_path=file_path_str,
             frontmatter=None,
             status="illegal",
@@ -76,7 +76,7 @@ def _extract_frontmatter_from_content(
         )
 
     if not isinstance(data, dict):
-        return FrontmatterEntry(
+        return FileEntry(
             file_path=file_path_str,
             frontmatter=None,
             status="illegal",
@@ -86,7 +86,7 @@ def _extract_frontmatter_from_content(
     data = _serialize_datetime(data)
     serialized = cast("dict[str, object] | None", data)
 
-    return FrontmatterEntry(
+    return FileEntry(
         file_path=file_path_str,
         frontmatter=serialized,
         status="ok",
@@ -143,7 +143,7 @@ def _compute_file_hash(content: bytes) -> str | None:
         return None
 
 
-def _worker_extract(root_str: str, file_str: str, compute_hash: bool) -> FrontmatterEntry:
+def _worker_extract(root_str: str, file_str: str, compute_hash: bool) -> FileEntry:
     """Worker function for ProcessPoolExecutor.
 
     Reads the file once and computes stats, and optionally hash.
@@ -154,13 +154,13 @@ def _worker_extract(root_str: str, file_str: str, compute_hash: bool) -> Frontma
         compute_hash: Whether to compute SHA-256 hash.
 
     Returns:
-        Fully populated FrontmatterEntry for the given file.
+        Fully populated FileEntry for the given file.
     """
     file_path = Path(file_str)
     try:
         raw_bytes = file_path.read_bytes()
     except Exception as exc:
-        return FrontmatterEntry(
+        return FileEntry(
             file_path=str(file_path),
             frontmatter=None,
             status="illegal",
@@ -172,7 +172,7 @@ def _worker_extract(root_str: str, file_str: str, compute_hash: bool) -> Frontma
     stats = _get_file_stats(file_path)
     file_hash = _compute_file_hash(raw_bytes) if compute_hash else None
 
-    return FrontmatterEntry(
+    return FileEntry(
         file_path=entry.file_path,
         frontmatter=entry.frontmatter,
         status=entry.status,
@@ -249,7 +249,7 @@ def scan_directory(
     max_workers = min(total_files, effective_n_procs)
     logger.debug("worker_pool_initialized", max_workers=max_workers)
 
-    results: list[FrontmatterEntry] = []
+    results: list[FileEntry] = []
 
     with ProcessPoolExecutor(max_workers=max_workers) as executor:
         future_to_path = {
@@ -264,7 +264,7 @@ def scan_directory(
                 rel_path = entry.file_path
 
             results.append(
-                FrontmatterEntry(
+                FileEntry(
                     file_path=rel_path,
                     frontmatter=entry.frontmatter,
                     status=entry.status,

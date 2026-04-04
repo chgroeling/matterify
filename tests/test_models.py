@@ -1,13 +1,13 @@
 """Tests for the models module."""
 
-from matterify.models import AggregatedResult, FrontmatterEntry, ScanMetadata
+from matterify.models import AggregatedResult, FileEntry, ScanMetadata
 
 
-class TestFrontmatterEntry:
-    """Tests for FrontmatterEntry dataclass."""
+class TestFileEntry:
+    """Tests for FileEntry dataclass."""
 
     def test_create_ok_entry(self) -> None:
-        entry = FrontmatterEntry(
+        entry = FileEntry(
             file_path="docs/test.md",
             frontmatter={"title": "Test"},
             status="ok",
@@ -19,7 +19,7 @@ class TestFrontmatterEntry:
         assert entry.error is None
 
     def test_create_illegal_entry(self) -> None:
-        entry = FrontmatterEntry(
+        entry = FileEntry(
             file_path="notes/bad.md",
             frontmatter=None,
             status="illegal",
@@ -31,7 +31,7 @@ class TestFrontmatterEntry:
         assert entry.error == "no_frontmatter"
 
     def test_immutability(self) -> None:
-        entry = FrontmatterEntry(
+        entry = FileEntry(
             file_path="test.md",
             frontmatter={"title": "Test"},
             status="ok",
@@ -44,7 +44,7 @@ class TestFrontmatterEntry:
             pass
 
     def test_not_hashable_with_dict(self) -> None:
-        entry = FrontmatterEntry(
+        entry = FileEntry(
             file_path="test.md",
             frontmatter={"title": "Test"},
             status="ok",
@@ -57,7 +57,7 @@ class TestFrontmatterEntry:
             pass
 
     def test_hashable_with_none_frontmatter(self) -> None:
-        entry = FrontmatterEntry(
+        entry = FileEntry(
             file_path="test.md",
             frontmatter=None,
             status="illegal",
@@ -122,7 +122,7 @@ class TestAggregatedResult:
             avg_duration_per_file_ms=100.0,
             throughput_files_per_second=10.0,
         )
-        entry = FrontmatterEntry(
+        entry = FileEntry(
             file_path="test.md",
             frontmatter={"title": "Test"},
             status="ok",

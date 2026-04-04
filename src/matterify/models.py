@@ -4,7 +4,7 @@ from dataclasses import dataclass
 
 
 @dataclass(frozen=True)
-class FrontmatterEntry:
+class FileEntry:
     """Represents extracted frontmatter from a single Markdown file.
 
     Attributes:
@@ -63,4 +63,4 @@ class AggregatedResult:
     """
 
     metadata: ScanMetadata
-    files: list[FrontmatterEntry]
+    files: list[FileEntry]

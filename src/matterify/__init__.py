@@ -9,7 +9,7 @@ from matterify.models import (
     AggregatedResult as AggregatedResult,
 )
 from matterify.models import (
-    FrontmatterEntry as FrontmatterEntry,
+    FileEntry as FileEntry,
 )
 from matterify.models import (
     ScanMetadata as ScanMetadata,

@@ -8,7 +8,7 @@ from matterify.extractor import (
     _worker_extract,
     scan_directory,
 )
-from matterify.models import FrontmatterEntry
+from matterify.models import FileEntry
 
 
 class TestExtractFrontmatterFromContent:
@@ -69,7 +69,7 @@ class TestExtractFrontmatterFromContent:
         file_path.write_text("---\ntitle: Test\n---\nContent", encoding="utf-8")
         content = file_path.read_text(encoding="utf-8")
         result = _extract_frontmatter_from_content(content, str(file_path))
-        assert isinstance(result, FrontmatterEntry)
+        assert isinstance(result, FileEntry)
 
     def test_extract_datetime_serialized_to_iso_string(self, tmp_path: Path) -> None:
         file_path = tmp_path / "datetime.md"
@@ -154,7 +154,7 @@ class TestWorkerExtract:
         file_path = tmp_path / "test.md"
         file_path.write_text("---\ntitle: Test\n---\nContent", encoding="utf-8")
         result = _worker_extract(str(tmp_path), str(file_path), compute_hash=True)
-        assert isinstance(result, FrontmatterEntry)
+        assert isinstance(result, FileEntry)
         assert result.file_size is not None
         assert result.modified_time is not None
         assert result.access_time is not None

@@ -163,7 +163,6 @@ def _worker_extract(
         file_size=file_size,
         modified_time=modified_time,
         access_time=access_time,
-        file_hash=file_hash,
     )
 
     return FileEntry(
@@ -172,6 +171,7 @@ def _worker_extract(
         status=entry.status,
         error=entry.error,
         stats=file_stats,
+        file_hash=file_hash,
     )
 
 
@@ -210,7 +210,8 @@ def scan_directory(
     from matterify.scanner import iter_markdown_files
 
     effective_blacklist = blacklist if blacklist is not None else BLACKLIST
-    effective_n_procs = os.cpu_count() or DEFAULT_N_PROCS
+    effective_n_procs = n_procs if n_procs is not None else os.cpu_count()
+    effective_n_procs = effective_n_procs if effective_n_procs is not None else DEFAULT_N_PROCS
 
     logger.debug(
         "starting_scan",

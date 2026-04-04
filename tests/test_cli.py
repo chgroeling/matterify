@@ -28,6 +28,8 @@ def test_scan_basic(sample_project: Path) -> None:
     assert result.exit_code == 0
     data = json.loads(result.output)
     assert data["metadata"]["total_files"] == 2
+    assert "stats" in data["files"][0]
+    assert "file_size" not in data["files"][0]
 
 
 def test_scan_verbose(sample_project: Path) -> None:
@@ -45,6 +47,8 @@ def test_scan_with_output(sample_project: Path, tmp_path: Path) -> None:
     assert output.exists()
     data = json.loads(output.read_text(encoding="utf-8"))
     assert data["metadata"]["total_files"] == 2
+    assert "stats" in data["files"][0]
+    assert "file_size" not in data["files"][0]
 
 
 def test_scan_verbose_with_output(sample_project: Path, tmp_path: Path) -> None:

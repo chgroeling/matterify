@@ -158,7 +158,7 @@ class TestWorkerExtract:
         assert result.stats.file_size is not None
         assert result.stats.modified_time is not None
         assert result.stats.access_time is not None
-        assert result.stats.file_hash is not None
+        assert result.file_hash is not None
 
     def test_worker_hash_disabled(self, tmp_path: Path) -> None:
         file_path = tmp_path / "test.md"
@@ -166,8 +166,7 @@ class TestWorkerExtract:
         result = _worker_extract(
             str(tmp_path), str(file_path), compute_hash=False, compute_stats=True
         )
-        assert result.stats is not None
-        assert result.stats.file_hash is None
+        assert result.file_hash is None
 
     def test_worker_stats_disabled(self, tmp_path: Path) -> None:
         file_path = tmp_path / "test.md"
@@ -179,7 +178,7 @@ class TestWorkerExtract:
         assert result.stats.file_size is None
         assert result.stats.modified_time is None
         assert result.stats.access_time is None
-        assert result.stats.file_hash is None
+        assert result.file_hash is None
 
     def test_worker_handles_missing_file(self, tmp_path: Path) -> None:
         result = _worker_extract(
@@ -270,7 +269,7 @@ class TestScanDirectory:
         result = scan_directory(project, compute_hash=False)
         assert result.files[0].stats is not None
         assert result.files[0].stats.file_size is not None
-        assert result.files[0].stats.file_hash is None
+        assert result.files[0].file_hash is None
 
     def test_aggregate_computes_hash_when_enabled(self, tmp_path: Path) -> None:
         project = tmp_path / "project"
@@ -278,8 +277,8 @@ class TestScanDirectory:
         (project / "test.md").write_text("---\ntitle: Test\n---\nContent", encoding="utf-8")
         result = scan_directory(project, compute_hash=True)
         assert result.files[0].stats is not None
-        assert result.files[0].stats.file_hash is not None
-        assert len(result.files[0].stats.file_hash) == 64
+        assert result.files[0].file_hash is not None
+        assert len(result.files[0].file_hash) == 64
 
     def test_aggregate_file_stats_present(self, tmp_path: Path) -> None:
         project = tmp_path / "project"

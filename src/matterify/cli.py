@@ -1,6 +1,7 @@
 """CLI entry point for matterify."""
 
 import json as _json
+from dataclasses import asdict
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -8,7 +9,6 @@ import click
 from structlog import get_logger
 
 from matterify import __version__
-from matterify.constants import BLACKLIST, DEFAULT_N_PROCS
 from matterify.extractor import scan_directory
 from matterify.logging import configure_debug_logging, get_console
 
@@ -43,18 +43,14 @@ logger = get_logger(__name__)
     help="Directories to exclude from scanning.",
 )
 @click.option(
-    "--no-hash",
+    "--hash/--no-hash",
     "compute_hash",
-    is_flag=True,
-    flag_value=False,
     default=True,
     help="Disable SHA-256 hash computation.",
 )
 @click.option(
-    "--no-stats",
+    "--stats/--no-stats",
     "compute_stats",
-    is_flag=True,
-    flag_value=False,
     default=True,
     help="Disable file statistics (size, modified time, access time).",
 )
@@ -87,8 +83,6 @@ def main(
     )
 
     console: Console = get_console(verbose)
-    blacklist = exclude if exclude else BLACKLIST
-    effective_n_procs = n_procs if n_procs is not None else DEFAULT_N_PROCS
 
     if verbose:
         console.print(f"Scanning: {directory}")
@@ -97,37 +91,13 @@ def main(
 
     result: AggregatedResult = scan_directory(
         directory,
-        n_procs=effective_n_procs,
-        blacklist=blacklist,
+        n_procs=n_procs,
+        blacklist=exclude,
         compute_hash=compute_hash,
         compute_stats=compute_stats,
     )
 
-    result_dict = {
-        "metadata": {
-            "source_directory": result.metadata.source_directory,
-            "total_files": result.metadata.total_files,
-            "files_with_frontmatter": result.metadata.files_with_frontmatter,
-            "files_without_frontmatter": result.metadata.files_without_frontmatter,
-            "errors": result.metadata.errors,
-            "scan_duration_seconds": result.metadata.scan_duration_seconds,
-            "avg_duration_per_file_ms": result.metadata.avg_duration_per_file_ms,
-            "throughput_files_per_second": result.metadata.throughput_files_per_second,
-        },
-        "files": [
-            {
-                "file_path": entry.file_path,
-                "frontmatter": entry.frontmatter,
-                "status": entry.status,
-                "error": entry.error,
-                "file_size": entry.stats.file_size if entry.stats else None,
-                "modified_time": entry.stats.modified_time if entry.stats else None,
-                "access_time": entry.stats.access_time if entry.stats else None,
-                "file_hash": entry.stats.file_hash if entry.stats else None,
-            }
-            for entry in result.files
-        ],
-    }
+    result_dict = asdict(result)
 
     if output:
         output.write_text(_json.dumps(result_dict, indent=2, ensure_ascii=False), encoding="utf-8")

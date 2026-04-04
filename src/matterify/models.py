@@ -5,19 +5,17 @@ from dataclasses import dataclass
 
 @dataclass(frozen=True)
 class FileStats:
-    """Encapsulates file statistics (size, timestamps, hash).
+    """Encapsulates file statistics (size and timestamps).
 
     Attributes:
         file_size: File size in bytes, or None if unavailable.
         modified_time: Last modification time as ISO 8601 string, or None.
         access_time: Last access time as ISO 8601 string, or None.
-        file_hash: SHA-256 hash of file content, or None if not computed.
     """
 
     file_size: int | None = None
     modified_time: str | None = None
     access_time: str | None = None
-    file_hash: str | None = None
 
 
 @dataclass(frozen=True)
@@ -29,7 +27,8 @@ class FileEntry:
         frontmatter: Parsed YAML content as a dictionary.
         status: Processing status - "ok" or "illegal".
         error: Error description if status is "illegal".
-        stats: File statistics (size, timestamps, hash).
+        stats: File statistics (size and timestamps).
+        file_hash: SHA-256 hash of file content, or None if not computed.
     """
 
     file_path: str
@@ -37,6 +36,7 @@ class FileEntry:
     status: str
     error: str | None
     stats: FileStats | None = None
+    file_hash: str | None = None
 
 
 @dataclass(frozen=True)

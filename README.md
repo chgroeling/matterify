@@ -31,11 +31,13 @@ matterify DIRECTORY [OPTIONS]
 
 **Options:**
 - `-o, --output PATH` - Write JSON to file instead of stdout (if omitted, outputs to stdout)
-- `-n-procs INT` - Worker process count (default: auto-detect CPU cores)
+- `--n-procs INT` - Worker process count (default: auto-detect CPU cores)
 - `-v, --verbose` - Show progress and summary
 - `-e, --exclude TEXT` - Additional directories to exclude
-- `--no-hash` - Disable SHA-256 hash computation
-- `--no-stats` - Disable file statistics (size, modified time, access time)
+- `--hash / --no-hash` - Enable/disable SHA-256 hash computation
+- `--stats / --no-stats` - Enable/disable file statistics (size, modified time, access time)
+- `--debug` - Enable debug logging
+- `--version` - Show version information and exit
 
 **Examples:**
 
@@ -48,6 +50,12 @@ matterify ./docs -o output.json
 
 # Verbose output
 matterify ./docs --verbose
+
+# Disable hashes and file stats
+matterify ./docs --no-hash --no-stats
+
+# Exclude additional directories
+matterify ./docs -e build -e .cache
 ```
 
 ## Python API
@@ -73,7 +81,7 @@ result = scan_directory(Path("./docs"))
 
 # AggregatedResult contains:
 # - result.metadata: ScanMetadata with scan statistics
-# - result.files: list[FrontmatterEntry] with extraction results
+# - result.files: list of file entries with extraction results
 
 # Access metadata
 print(result.metadata.total_files)
@@ -83,47 +91,20 @@ print(result.metadata.scan_duration_seconds)
 # Access files
 for entry in result.files:
     print(entry.file_path, entry.status)
-
-# Output to JSON file
-import json
-output = {
-    "metadata": {
-        "source_directory": result.metadata.source_directory,
-        "total_files": result.metadata.total_files,
-        "files_with_frontmatter": result.metadata.files_with_frontmatter,
-        "files_without_frontmatter": result.metadata.files_without_frontmatter,
-        "errors": result.metadata.errors,
-        "scan_duration_seconds": result.metadata.scan_duration_seconds,
-        "avg_duration_per_file_ms": result.metadata.avg_duration_per_file_ms,
-        "throughput_files_per_second": result.metadata.throughput_files_per_second,
-    },
-    "files": [
-        {
-            "file_path": e.file_path,
-            "frontmatter": e.frontmatter,
-            "status": e.status,
-            "error": e.error,
-            "file_size": e.file_size,
-            "modified_time": e.modified_time,
-            "access_time": e.access_time,
-        }
-        for e in result.files
-    ],
-}
-Path("output.json").write_text(json.dumps(output, indent=2))
+    print(entry.stats.file_size if entry.stats else None)
 ```
 
 ### Public Types
 
 ```python
 from matterify import (
-    FrontmatterEntry,
+    FileEntry,
     ScanMetadata,
     AggregatedResult,
 )
 
-# FrontmatterEntry: extracted frontmatter from a single file
-entry: FrontmatterEntry
+# FileEntry: extracted frontmatter from a single file
+entry: FileEntry
 
 # ScanMetadata: summary statistics about a scan
 metadata: ScanMetadata
@@ -134,7 +115,7 @@ result: AggregatedResult
 
 ## JSON Output Structure
 
-When using CLI with `--output`:
+When using CLI (stdout or `--output`), the payload has this shape:
 
 ```json
 {
@@ -150,7 +131,7 @@ When using CLI with `--output`:
   },
   "files": [
     {
-      "file_path": "docs/getting-started.md",
+      "file_path": "getting-started.md",
       "frontmatter": {
         "title": "Getting Started",
         "date": "2024-01-15",
@@ -158,17 +139,18 @@ When using CLI with `--output`:
       },
       "status": "ok",
       "error": null,
-            "file_size": 1234,
-            "modified_time": "2024-01-15T10:30:00",
-            "access_time": "2024-01-15T10:30:00",
-            "file_hash": "abc123..."
-          }
-        ]
-      }
+      "stats": {
+        "file_size": 1234,
+        "modified_time": "2024-01-15T10:30:00",
+        "access_time": "2024-01-15T10:30:00"
+      },
+      "file_hash": "abc123..."
     }
   ]
 }
 ```
+
+`status` is either `"ok"` or `"illegal"`.
 
 ## Default Exclusions
 

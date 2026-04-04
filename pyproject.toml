@@ -3,6 +3,7 @@ name = "matterify"
 version = "0.1.0"
 description = "Extract and aggregate YAML frontmatter from Markdown files into structured JSON"
 readme = "README.md"
+keywords = ["markdown", "frontmatter", "yaml", "json", "cli", "metadata", "static-site"]
 authors = [
     { name = "Christian Gröling", email = "contact@christiangroeling.de" }
 ]
@@ -14,7 +15,14 @@ dependencies = [
     "pyyaml>=6.0",
 ]
 classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3 :: Only",
+    "Topic :: Software Development :: Documentation",
+    "Topic :: Text Processing :: Markup :: Markdown",
+    "Typing :: Typed",
     "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
 ]

@@ -224,3 +224,7 @@ uv run ruff check src/ tests/
 # Type check
 uv run mypy src/
 ```
+
+## License
+
+MIT License - see [LICENSE](LICENSE) file for details.

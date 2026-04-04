@@ -15,18 +15,9 @@ if TYPE_CHECKING:
     from rich.console import Console
 
 
-@click.group()
+@click.command()
 @click.version_option(version=__version__, prog_name="matterify")
 @click.option("--debug", is_flag=True, help="Enable debug logging.")
-@click.pass_context
-def main(ctx: click.Context, debug: bool) -> None:
-    """Matterify - Extract YAML frontmatter from Markdown files."""
-    ctx.ensure_object(dict)
-    ctx.obj["debug"] = debug
-    configure_debug_logging(debug)
-
-
-@main.command()
 @click.argument("directory", type=click.Path(exists=True, path_type=Path))
 @click.option(
     "--output",
@@ -49,15 +40,19 @@ def main(ctx: click.Context, debug: bool) -> None:
     help="Directories to exclude from scanning.",
 )
 @click.pass_context
-def scan(
+def main(
     ctx: click.Context,
     directory: Path,
+    debug: bool,
     output: Path | None,
     n_procs: int | None,
     verbose: bool,
     exclude: tuple[str, ...],
 ) -> None:
-    """Scan a directory for Markdown files and extract frontmatter."""
+    """Matterify - Extract YAML frontmatter from Markdown files."""
+    ctx.ensure_object(dict)
+    configure_debug_logging(debug)
+
     console: Console = get_console(verbose)
     blacklist = exclude if exclude else BLACKLIST
 
@@ -98,40 +93,3 @@ def scan(
             ],
         }
         click.echo(_json.dumps(data, indent=2))
-
-
-@main.command()
-@click.argument("directory", type=click.Path(exists=True, path_type=Path))
-@click.option(
-    "--output",
-    "-o",
-    type=click.Path(path_type=Path),
-    required=True,
-    help="Output JSON file path (required).",
-)
-@click.option(
-    "--n-procs",
-    type=int,
-    default=None,
-    help="Worker process count (default: auto-detect CPU cores).",
-)
-@click.option("--verbose", "-v", is_flag=True, help="Show progress and summary.")
-@click.option(
-    "--exclude",
-    "-e",
-    multiple=True,
-    help="Directories to exclude from scanning.",
-)
-@click.pass_context
-def export(
-    ctx: click.Context,
-    directory: Path,
-    output: Path,
-    n_procs: int | None,
-    verbose: bool,
-    exclude: tuple[str, ...],
-) -> None:
-    """Export aggregated frontmatter to a JSON file."""
-    ctx.invoke(
-        scan, directory=directory, output=output, n_procs=n_procs, verbose=verbose, exclude=exclude
-    )

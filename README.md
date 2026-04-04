@@ -19,33 +19,28 @@ pip install matterify
 
 ## CLI Usage
 
-### scan
-
-Scan a directory for Markdown files and extract frontmatter.
-
 ```bash
-matterify scan DIRECTORY [OPTIONS]
+matterify DIRECTORY [OPTIONS]
 ```
 
 **Options:**
-- `-o, --output PATH` - Write JSON to file instead of stdout
+- `-o, --output PATH` - Write JSON to file instead of stdout (if omitted, outputs to stdout)
 - `-n-procs INT` - Worker process count (default: auto-detect CPU cores)
 - `-v, --verbose` - Show progress and summary
 - `-e, --exclude TEXT` - Additional directories to exclude
 
-### export
-
-Export aggregated frontmatter to a JSON file (alias for `scan` with required output).
+**Examples:**
 
 ```bash
-matterify export DIRECTORY -o OUTPUT [OPTIONS]
-```
+# Output to stdout (JSON)
+matterify ./docs
 
-**Options:**
-- `-o, --output PATH` - Output JSON file path (required)
-- `-n-procs INT` - Worker process count (default: auto-detect CPU cores)
-- `-v, --verbose` - Show progress and summary
-- `-e, --exclude TEXT` - Additional directories to exclude
+# Output to file
+matterify ./docs -o output.json
+
+# Verbose output
+matterify ./docs --verbose
+```
 
 ## Python API
 

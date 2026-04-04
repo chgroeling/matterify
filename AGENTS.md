@@ -19,7 +19,7 @@ matterify/
 ├── tests/                                    # Pytest suite
 │   ├── conftest.py                           # Fixtures
 │   ├── test_extractor.py, test_utils.py      # Unit tests
-│   └── test_*_cli.py                         # Integration tests
+│   └── test_cli.py                           # CLI tests
 └── docs/                                     # MkDocs source
 ```
 
@@ -51,7 +51,7 @@ matterify/
 
 ### Tests (`uv run pytest`)
 - **Exec:** `.` (all), `-v` (verbose), `tests/[file].py[::func]` (targeted), `--cov=matterify --cov-report=html` (coverage).
-- **Structure:** `tests/` dir 1:1 mapping (`extractor.py`->`test_extractor.py`, `utils/__init__.py`->`test_utils.py`). `cli.py` splits to `test_cli.py` (smoke), `test_[scan|export]_cli.py`.
+- **Structure:** `tests/` dir 1:1 mapping (`extractor.py`->`test_extractor.py`, `utils/__init__.py`->`test_utils.py`, `cli.py`->`test_cli.py`).
 - **FS Rules:** Prioritize critical paths. Use `tmp_path`. Name staging dirs `project/` (avoids `src/src/` nesting).
 - **Paths:** Stored paths include top-level prefix (`project/src/main.py`). Assert via `endswith()` or `rglob()`.
 - **Public API only:** Never import or call private symbols (names starting with `_`) from `src/` in tests. Test behaviour exclusively through the public API.
@@ -146,31 +146,20 @@ The dictionary returned by `aggregate_frontmatter()` has the following structure
 
 ## CLI
 
-### Commands
+### Usage
 
-#### `matterify scan`
-Scan a directory for Markdown files and extract frontmatter.
-
-**Arguments:**
-- `directory`: Directory to scan (required).
-
-**Options:**
-- `--output`, `-o`: Write JSON to file instead of stdout.
-- `--n-procs`: Worker process count (default: 4).
-- `--verbose`, `-v`: Show progress and summary.
-
-#### `matterify export`
-Export aggregated frontmatter to a JSON file. (Alias for `scan` with required output).
+```bash
+matterify DIRECTORY [OPTIONS]
+```
 
 **Arguments:**
 - `directory`: Directory to scan (required).
 
 **Options:**
-- `--output`, `-o`: Output JSON file path (required).
-- `--n-procs`: Worker process count (default: 4).
+- `--output`, `-o`: Write JSON to file instead of stdout (if omitted, outputs to stdout).
+- `--n-procs`: Worker process count (default: auto-detect CPU cores).
 - `--verbose`, `-v`: Show progress and summary.
-
-### Global Options
+- `--exclude`, `-e`: Additional directories to exclude.
 - `--debug`: Enable debug logging.
 - `--version`: Show version information.
 
@@ -196,7 +185,7 @@ Export aggregated frontmatter to a JSON file. (Alias for `scan` with required ou
 - `scanner.py`: Directory traversal with blacklist filtering using `Path.walk()`.
 - `models.py`: Frozen dataclasses for type-safe data structures.
 - `logging.py`: `structlog` configuration and `rich.Console` factory.
-- `cli.py`: Click-based CLI with `scan` and `export` commands.
+- `cli.py`: Click-based CLI entry point.
 
 ### Extraction Pipeline
 1. `iter_markdown_files()` discovers all `.md`/`.markdown` files, respecting blacklist.

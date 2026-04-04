@@ -79,10 +79,16 @@ class TestExtractFrontmatter:
 
     def test_extract_nested_datetime_serialized(self, tmp_path: Path) -> None:
         file_path = tmp_path / "nested.md"
-        file_path.write_text(
-            "---\ntitle: Test\nmetadata:\n  created: 2024-01-01\n  updated: 2024-06-15T14:00:00\n---\nContent",
-            encoding="utf-8",
+        content = (
+            "---\n"
+            "title: Test\n"
+            "metadata:\n"
+            "  created: 2024-01-01\n"
+            "  updated: 2024-06-15T14:00:00\n"
+            "---\n"
+            "Content"
         )
+        file_path.write_text(content, encoding="utf-8")
         result = extract_frontmatter(file_path)
         assert result.status == "ok"
         assert result.frontmatter is not None
@@ -102,10 +108,18 @@ class TestExtractFrontmatter:
 
     def test_extract_mixed_content_with_datetime(self, tmp_path: Path) -> None:
         file_path = tmp_path / "mixed.md"
-        file_path.write_text(
-            "---\ntitle: Test\ntags:\n  - test\n  - example\npublished: 2024-03-15\nauthor: John Doe\n---\nContent",
-            encoding="utf-8",
+        content = (
+            "---\n"
+            "title: Test\n"
+            "tags:\n"
+            "  - test\n"
+            "  - example\n"
+            "published: 2024-03-15\n"
+            "author: John Doe\n"
+            "---\n"
+            "Content"
         )
+        file_path.write_text(content, encoding="utf-8")
         result = extract_frontmatter(file_path)
         assert result.status == "ok"
         assert result.frontmatter is not None
@@ -113,6 +127,25 @@ class TestExtractFrontmatter:
         assert result.frontmatter["tags"] == ["test", "example"]
         assert result.frontmatter["published"] == "2024-03-15"
         assert result.frontmatter["author"] == "John Doe"
+
+    def test_extract_includes_file_size(self, tmp_path: Path) -> None:
+        file_path = tmp_path / "test.md"
+        file_path.write_text("---\ntitle: Test\n---\nContent", encoding="utf-8")
+        result = extract_frontmatter(file_path)
+        assert result.file_size is not None
+        assert result.file_size > 0
+
+    def test_extract_includes_modified_time(self, tmp_path: Path) -> None:
+        file_path = tmp_path / "test.md"
+        file_path.write_text("---\ntitle: Test\n---\nContent", encoding="utf-8")
+        result = extract_frontmatter(file_path)
+        assert result.modified_time is not None
+
+    def test_extract_includes_access_time(self, tmp_path: Path) -> None:
+        file_path = tmp_path / "test.md"
+        file_path.write_text("---\ntitle: Test\n---\nContent", encoding="utf-8")
+        result = extract_frontmatter(file_path)
+        assert result.access_time is not None
 
 
 class TestAggregateFrontmatter:
@@ -236,6 +269,9 @@ class TestExportJson:
             assert "frontmatter" in entry
             assert "status" in entry
             assert "error" in entry
+            assert "file_size" in entry
+            assert "modified_time" in entry
+            assert "access_time" in entry
 
     def test_export_content_matches_aggregate(
         self,

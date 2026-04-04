@@ -12,12 +12,18 @@ class FrontmatterEntry:
         frontmatter: Parsed YAML content as a dictionary.
         status: Processing status - "ok" or "illegal".
         error: Error description if status is "illegal".
+        file_size: File size in bytes, or None if unavailable.
+        modified_time: Last modification time as ISO 8601 string, or None.
+        access_time: Last access time as ISO 8601 string, or None.
     """
 
     file_path: str
     frontmatter: dict[str, object] | None
     status: str
     error: str | None
+    file_size: int | None = None
+    modified_time: str | None = None
+    access_time: str | None = None
 
 
 @dataclass(frozen=True)

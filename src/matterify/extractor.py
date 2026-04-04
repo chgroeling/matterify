@@ -39,6 +39,18 @@ def extract_frontmatter(file_path: Path) -> FrontmatterEntry:
     Returns:
         FrontmatterEntry with status "ok" or "illegal".
     """
+    file_size: int | None = None
+    modified_time: str | None = None
+    access_time: str | None = None
+
+    try:
+        stat_info = file_path.stat()
+        file_size = stat_info.st_size
+        modified_time = datetime.fromtimestamp(stat_info.st_mtime).isoformat()
+        access_time = datetime.fromtimestamp(stat_info.st_atime).isoformat()
+    except OSError:
+        pass
+
     try:
         content = file_path.read_text(encoding="utf-8").strip()
     except Exception as exc:
@@ -47,6 +59,9 @@ def extract_frontmatter(file_path: Path) -> FrontmatterEntry:
             frontmatter=None,
             status="illegal",
             error=str(exc),
+            file_size=file_size,
+            modified_time=modified_time,
+            access_time=access_time,
         )
 
     if not content.startswith("---"):
@@ -55,6 +70,9 @@ def extract_frontmatter(file_path: Path) -> FrontmatterEntry:
             frontmatter=None,
             status="illegal",
             error="no_frontmatter",
+            file_size=file_size,
+            modified_time=modified_time,
+            access_time=access_time,
         )
 
     parts = content.split("---", 2)
@@ -64,6 +82,9 @@ def extract_frontmatter(file_path: Path) -> FrontmatterEntry:
             frontmatter=None,
             status="illegal",
             error="no_frontmatter",
+            file_size=file_size,
+            modified_time=modified_time,
+            access_time=access_time,
         )
 
     yaml_block = parts[1]
@@ -75,6 +96,9 @@ def extract_frontmatter(file_path: Path) -> FrontmatterEntry:
             frontmatter=None,
             status="illegal",
             error="yaml_parse_error",
+            file_size=file_size,
+            modified_time=modified_time,
+            access_time=access_time,
         )
 
     if not isinstance(data, dict):
@@ -83,6 +107,9 @@ def extract_frontmatter(file_path: Path) -> FrontmatterEntry:
             frontmatter=None,
             status="illegal",
             error="non_dict_frontmatter",
+            file_size=file_size,
+            modified_time=modified_time,
+            access_time=access_time,
         )
 
     data = _serialize_datetime(data)
@@ -93,6 +120,9 @@ def extract_frontmatter(file_path: Path) -> FrontmatterEntry:
         frontmatter=serialized,
         status="ok",
         error=None,
+        file_size=file_size,
+        modified_time=modified_time,
+        access_time=access_time,
     )
 
 
@@ -160,6 +190,9 @@ def aggregate_frontmatter(
                     frontmatter=entry.frontmatter,
                     status=entry.status,
                     error=entry.error,
+                    file_size=entry.file_size,
+                    modified_time=entry.modified_time,
+                    access_time=entry.access_time,
                 )
             )
 
@@ -224,6 +257,9 @@ def export_json(
                 "frontmatter": entry.frontmatter,
                 "status": entry.status,
                 "error": entry.error,
+                "file_size": entry.file_size,
+                "modified_time": entry.modified_time,
+                "access_time": entry.access_time,
             }
             for entry in result.files
         ],

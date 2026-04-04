@@ -1,6 +1,7 @@
 """CLI entry point for matterify."""
 
 import json as _json
+import os
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -10,12 +11,25 @@ from structlog import get_logger
 from matterify import __version__
 from matterify.extractor import scan_directory
 from matterify.logging import configure_debug_logging, get_console
-from matterify.scanner import BLACKLIST
 
 if TYPE_CHECKING:
     from rich.console import Console
 
 logger = get_logger(__name__)
+
+BLACKLIST: tuple[str, ...] = (
+    ".git",
+    ".obsidian",
+    "__pycache__",
+    ".venv",
+    "venv",
+    "node_modules",
+    ".mypy_cache",
+    ".pytest_cache",
+    ".ruff_cache",
+)
+
+DEFAULT_N_PROCS = os.cpu_count() or 1
 
 
 @click.command()
@@ -68,13 +82,14 @@ def main(
 
     console: Console = get_console(verbose)
     blacklist = exclude if exclude else BLACKLIST
+    effective_n_procs = n_procs if n_procs is not None else DEFAULT_N_PROCS
 
     if verbose:
         console.print(f"Scanning: {directory}")
 
     from matterify import AggregatedResult
 
-    result: AggregatedResult = scan_directory(directory, n_procs=n_procs, blacklist=blacklist)
+    result: AggregatedResult = scan_directory(directory, n_procs=effective_n_procs, blacklist=blacklist)
 
     result_dict = {
         "metadata": {

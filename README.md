@@ -55,24 +55,8 @@ matterify ./docs --verbose
 ```python
 from pathlib import Path
 from matterify import (
-    extract_frontmatter,
     scan_directory,
-    iter_markdown_files,
 )
-```
-
-#### extract_frontmatter
-
-Extract YAML frontmatter from a single Markdown file.
-
-```python
-from pathlib import Path
-from matterify import extract_frontmatter
-
-entry = extract_frontmatter(Path("readme.md"))
-print(entry.file_path)   # "readme.md"
-print(entry.frontmatter) # {"title": "Read Me", ...}
-print(entry.status)      # "ok" or "illegal"
 ```
 
 #### scan_directory
@@ -127,23 +111,6 @@ output = {
 Path("output.json").write_text(json.dumps(output, indent=2))
 ```
 
-#### iter_markdown_files
-
-Yield Markdown files in directory.
-
-```python
-from pathlib import Path
-from matterify import iter_markdown_files, BLACKLIST
-
-# Using default blacklist
-for md_file in iter_markdown_files(Path("./docs")):
-    print(md_file)
-
-# With custom blacklist
-for md_file in iter_markdown_files(Path("./docs"), blacklist=(".git", "__pycache__")):
-    print(md_file)
-```
-
 ### Public Types
 
 ```python
@@ -151,7 +118,6 @@ from matterify import (
     FrontmatterEntry,
     ScanMetadata,
     AggregatedResult,
-    BLACKLIST,
 )
 
 # FrontmatterEntry: extracted frontmatter from a single file
@@ -162,9 +128,6 @@ metadata: ScanMetadata
 
 # AggregatedResult: holds metadata and file entries
 result: AggregatedResult
-
-# BLACKLIST: tuple of excluded directory names
-print(BLACKLIST)  # (".git", ".obsidian", ...)
 ```
 
 ## JSON Output Structure

@@ -100,9 +100,7 @@ matterify/
 ## Python API
 
 ### Public Functions
-- `extract_frontmatter(file_path: Path) -> FrontmatterEntry`: Extract YAML frontmatter from a single Markdown file.
 - `scan_directory(directory: Path, n_procs: int = 4, blacklist: tuple[str, ...] | None = None) -> AggregatedResult`: Scan directory and aggregate frontmatter using parallel workers. Returns an `AggregatedResult` dataclass.
-- `iter_markdown_files(root: Path, blacklist: tuple[str, ...] = BLACKLIST) -> Iterable[Path]`: Yield Markdown files in directory.
 
 ### AggregatedResult Structure
 The `scan_directory()` function returns an `AggregatedResult` dataclass:
@@ -131,7 +129,6 @@ Where `ScanMetadata` contains:
 - `FrontmatterEntry`: Dataclass representing extracted frontmatter from a single file.
 - `ScanMetadata`: Dataclass containing summary statistics about a scan.
 - `AggregatedResult`: Dataclass holding metadata and file entries.
-- `BLACKLIST`: Tuple of directory names excluded from scanning (`.git`, `.obsidian`, `__pycache__`, `.venv`, `venv`, `node_modules`, `.mypy_cache`, `.pytest_cache`, `.ruff_cache`).
 
 ### Status Values
 - `ok`: File successfully parsed with valid YAML frontmatter.

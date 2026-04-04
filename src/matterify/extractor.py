@@ -10,11 +10,10 @@ from typing import cast
 import yaml
 from structlog import get_logger
 
+from matterify.constants import DEFAULT_N_PROCS
 from matterify.models import AggregatedResult, FrontmatterEntry, ScanMetadata
 
 logger = get_logger(__name__)
-
-DEFAULT_N_PROCS = 1
 
 
 def _serialize_datetime(
@@ -156,7 +155,8 @@ def scan_directory(
     Returns:
         AggregatedResult with metadata and file entries.
     """
-    from matterify.scanner import BLACKLIST, iter_markdown_files
+    from matterify.constants import BLACKLIST
+    from matterify.scanner import iter_markdown_files
 
     effective_blacklist = blacklist if blacklist is not None else BLACKLIST
     effective_n_procs = os.cpu_count() or DEFAULT_N_PROCS

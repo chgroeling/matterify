@@ -5,19 +5,9 @@ from pathlib import Path
 
 from structlog import get_logger
 
-logger = get_logger(__name__)
+from matterify.constants import BLACKLIST
 
-BLACKLIST: tuple[str, ...] = (
-    ".git",
-    ".obsidian",
-    "__pycache__",
-    ".venv",
-    "venv",
-    "node_modules",
-    ".mypy_cache",
-    ".pytest_cache",
-    ".ruff_cache",
-)
+logger = get_logger(__name__)
 
 _MARKDOWN_SUFFIXES = {".md", ".markdown"}
 

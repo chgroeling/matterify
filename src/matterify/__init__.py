@@ -1,6 +1,8 @@
 """Matterify - Extract and aggregate YAML frontmatter from Markdown files."""
 
-__version__ = "0.1.0"
+from importlib.metadata import version
+
+__version__ = version("matterify")
 
 from matterify.extractor import (
     scan_directory as scan_directory,

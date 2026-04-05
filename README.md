@@ -1,11 +1,12 @@
 # Matterify
 
+[![Python 3.12+](https://img.shields.io/badge/python-3.12+-blue.svg)](https://www.python.org/downloads/)
+[![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+![Status: Alpha](https://img.shields.io/badge/status-alpha-orange.svg)
+[![PyPI](https://img.shields.io/pypi/v/matterify.svg)](https://pypi.org/project/matterify/)
+
 Extract and aggregate YAML frontmatter from Markdown files, with optional SHA-256 hashes
 and file statistics.
-
-[![Python version](https://img.shields.io/badge/python-3.12+-blue.svg)](https://www.python.org/downloads/)
-[![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
-[![PyPI](https://img.shields.io/pypi/v/matterify.svg)](https://pypi.org/project/matterify/)
 
 ## Quick Start
 

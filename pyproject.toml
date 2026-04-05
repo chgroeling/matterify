@@ -30,6 +30,7 @@ classifiers = [
 [project.urls]
 Homepage = "https://github.com/chgroeling/matterify"
 Repository = "https://github.com/chgroeling/matterify"
+Issues = "https://github.com/chgroeling/matterify/issues"
 
 
 [project.scripts]

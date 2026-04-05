@@ -11,11 +11,19 @@ from typing import cast
 import yaml
 from structlog import get_logger
 
+from matterify.cache import (
+    build_scan_cache_key,
+    clear_cache,
+    get_cached_scan_result,
+    set_cached_scan_result,
+)
 from matterify.constants import BLACKLIST, DEFAULT_N_PROCS
 from matterify.models import AggregatedResult, FileEntry, FileStats, ScanMetadata
 from matterify.scanner import iter_markdown_files
 
 logger = get_logger(__name__)
+
+__all__ = ["scan_directory", "clear_cache"]
 
 
 def _serialize_datetime(
@@ -169,6 +177,7 @@ def scan_directory(
     compute_hash: bool = True,
     compute_stats: bool = True,
     compute_frontmatter: bool = True,
+    force_refresh: bool = False,
 ) -> AggregatedResult:
     """Scan directory and aggregate frontmatter using concurrent workers.
 
@@ -179,6 +188,7 @@ def scan_directory(
         compute_hash: Whether to compute SHA-256 hash for each file (default: True).
         compute_stats: Whether to compute file stats (size, mtime, atime) (default: True).
         compute_frontmatter: Whether to extract YAML frontmatter (default: True).
+        force_refresh: Whether to bypass cache and force recomputation (default: False).
 
     Returns:
         AggregatedResult with metadata and file entries.
@@ -199,6 +209,20 @@ def scan_directory(
     effective_blacklist = blacklist if blacklist is not None else BLACKLIST
     effective_n_procs = n_procs if n_procs is not None else os.cpu_count()
     effective_n_procs = effective_n_procs if effective_n_procs is not None else DEFAULT_N_PROCS
+    cache_key = build_scan_cache_key(
+        directory=directory,
+        effective_n_procs=effective_n_procs,
+        effective_blacklist=effective_blacklist,
+        compute_hash=compute_hash,
+        compute_stats=compute_stats,
+        compute_frontmatter=compute_frontmatter,
+    )
+
+    if not force_refresh:
+        cached_result = get_cached_scan_result(cache_key)
+        if cached_result is not None:
+            logger.debug("scan_cache_hit", directory=str(directory))
+            return cached_result
 
     logger.debug(
         "starting_scan",
@@ -226,7 +250,9 @@ def scan_directory(
             avg_duration_per_file_ms=0.0,
             throughput_files_per_second=0.0,
         )
-        return AggregatedResult(metadata=metadata, files=[])
+        result = AggregatedResult(metadata=metadata, files=[])
+        set_cached_scan_result(cache_key, result)
+        return result
 
     if not compute_frontmatter and not compute_hash and not compute_stats:
         duration = time.perf_counter() - start_time
@@ -240,7 +266,9 @@ def scan_directory(
             avg_duration_per_file_ms=0.0,
             throughput_files_per_second=0.0,
         )
-        return AggregatedResult(metadata=metadata, files=[])
+        result = AggregatedResult(metadata=metadata, files=[])
+        set_cached_scan_result(cache_key, result)
+        return result
 
     max_workers = min(total_files, effective_n_procs)
     logger.debug("worker_pool_initialized", max_workers=max_workers)
@@ -300,4 +328,7 @@ def scan_directory(
         throughput=round(throughput, 1),
     )
 
-    return AggregatedResult(metadata=metadata, files=results)
+    result = AggregatedResult(metadata=metadata, files=results)
+    set_cached_scan_result(cache_key, result)
+
+    return result

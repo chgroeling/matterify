@@ -1,6 +1,6 @@
 """Tests for utility modules."""
 
-from matterify import __version__
+from matterify import __version__, clear_cache
 
 
 def test_version_is_string() -> None:
@@ -11,3 +11,7 @@ def test_version_format() -> None:
     parts = __version__.split(".")
     assert len(parts) >= 2
     assert all(p.isdigit() for p in parts[:2])
+
+
+def test_clear_cache_is_exported() -> None:
+    assert callable(clear_cache)

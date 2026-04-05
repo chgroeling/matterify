@@ -1,6 +1,6 @@
 [project]
 name = "matterify"
-version = "0.2.1"
+dynamic = ["version"]
 description = "Extract and aggregate YAML frontmatter from Markdown files into structured JSON"
 readme = "README.md"
 keywords = ["markdown", "frontmatter", "yaml", "json", "cli", "metadata", "static-site"]
@@ -37,8 +37,14 @@ Issues = "https://github.com/chgroeling/matterify/issues"
 matterify = "matterify.cli:main"
 
 [build-system]
-requires = ["hatchling"]
+requires = ["hatchling", "hatch-vcs"]
 build-backend = "hatchling.build"
+
+[tool.hatch.version]
+source = "vcs"
+
+[tool.hatch.version.raw-options]
+local_scheme = "no-local-version"
 
 [dependency-groups]
 dev = [

@@ -129,7 +129,7 @@ def _worker_extract(
     if compute_frontmatter or compute_hash:
         try:
             raw_bytes = file_path.read_bytes()
-        except Exception as exc:
+        except OSError as exc:
             return FileEntry(
                 file_path=file_str,
                 frontmatter=None,

@@ -3,6 +3,7 @@
 import hashlib
 import os
 import time
+from collections.abc import Callable
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from datetime import date, datetime
 from pathlib import Path
@@ -11,19 +12,15 @@ from typing import cast
 import yaml
 from structlog import get_logger
 
-from matterify.cache import (
-    build_scan_cache_key,
-    clear_cache,
-    get_cached_scan_result,
-    set_cached_scan_result,
-)
 from matterify.constants import BLACKLIST, DEFAULT_N_PROCS
 from matterify.models import AggregatedResult, FileEntry, FileStats, ScanMetadata
 from matterify.scanner import iter_markdown_files
 
 logger = get_logger(__name__)
 
-__all__ = ["scan_directory", "clear_cache"]
+__all__ = ["scan_directory"]
+
+type ContentCallback = Callable[[str], dict[str, object] | None]
 
 
 def _serialize_datetime(
@@ -99,6 +96,7 @@ def _worker_extract(
     compute_hash: bool,
     compute_stats: bool,
     compute_frontmatter: bool,
+    callback: ContentCallback | None = None,
 ) -> FileEntry:
     """Worker function for ProcessPoolExecutor.
 
@@ -110,6 +108,8 @@ def _worker_extract(
         compute_hash: Whether to compute SHA-256 hash.
         compute_stats: Whether to compute file statistics.
         compute_frontmatter: Whether to extract YAML frontmatter.
+        callback: Optional callable that receives file content and returns custom data dict.
+            Must be picklable (module-level function, not lambda or closure).
 
     Returns:
         Fully populated FileEntry for the given file.
@@ -119,6 +119,7 @@ def _worker_extract(
     file_stats: FileStats | None = None
     file_hash: str | None = None
     frontmatter: dict[str, object] | None = None
+    custom_data: dict[str, object] | None = None
     status: str
     error: str | None
     fm_file_path = file_str
@@ -134,7 +135,7 @@ def _worker_extract(
         except OSError:
             pass
 
-    if compute_frontmatter or compute_hash:
+    if compute_frontmatter or compute_hash or callback is not None:
         try:
             raw_bytes = file_path.read_bytes()
         except OSError as exc:
@@ -145,11 +146,19 @@ def _worker_extract(
                 error=str(exc),
             )
 
-        if compute_frontmatter:
+        if compute_frontmatter or callback is not None:
             content = raw_bytes.decode("utf-8")
-            fm_file_path, frontmatter, status, error = _extract_frontmatter_from_content(
-                content, file_str
-            )
+
+            if compute_frontmatter:
+                fm_file_path, frontmatter, status, error = _extract_frontmatter_from_content(
+                    content, file_str
+                )
+            else:
+                status = "ok"
+                error = None
+
+            if callback is not None:
+                custom_data = callback(content)
         else:
             status = "ok"
             error = None
@@ -167,6 +176,7 @@ def _worker_extract(
         error=error,
         stats=file_stats,
         file_hash=file_hash,
+        custom_data=custom_data,
     )
 
 
@@ -177,7 +187,7 @@ def scan_directory(
     compute_hash: bool = True,
     compute_stats: bool = True,
     compute_frontmatter: bool = True,
-    force_refresh: bool = False,
+    callback: ContentCallback | None = None,
 ) -> AggregatedResult:
     """Scan directory and aggregate frontmatter using concurrent workers.
 
@@ -188,7 +198,8 @@ def scan_directory(
         compute_hash: Whether to compute SHA-256 hash for each file (default: True).
         compute_stats: Whether to compute file stats (size, mtime, atime) (default: True).
         compute_frontmatter: Whether to extract YAML frontmatter (default: True).
-        force_refresh: Whether to bypass cache and force recomputation (default: False).
+        callback: Optional callable that receives file content and returns custom data dict.
+            Must be picklable (module-level function, not lambda or closure).
 
     Returns:
         AggregatedResult with metadata and file entries.
@@ -209,20 +220,6 @@ def scan_directory(
     effective_blacklist = blacklist if blacklist is not None else BLACKLIST
     effective_n_procs = n_procs if n_procs is not None else os.cpu_count()
     effective_n_procs = effective_n_procs if effective_n_procs is not None else DEFAULT_N_PROCS
-    cache_key = build_scan_cache_key(
-        directory=directory,
-        effective_n_procs=effective_n_procs,
-        effective_blacklist=effective_blacklist,
-        compute_hash=compute_hash,
-        compute_stats=compute_stats,
-        compute_frontmatter=compute_frontmatter,
-    )
-
-    if not force_refresh:
-        cached_result = get_cached_scan_result(cache_key)
-        if cached_result is not None:
-            logger.debug("scan_cache_hit", directory=str(directory))
-            return cached_result
 
     logger.debug(
         "starting_scan",
@@ -251,7 +248,6 @@ def scan_directory(
             throughput_files_per_second=0.0,
         )
         result = AggregatedResult(metadata=metadata, files=[])
-        set_cached_scan_result(cache_key, result)
         return result
 
     if not compute_frontmatter and not compute_hash and not compute_stats:
@@ -267,7 +263,6 @@ def scan_directory(
             throughput_files_per_second=0.0,
         )
         result = AggregatedResult(metadata=metadata, files=[])
-        set_cached_scan_result(cache_key, result)
         return result
 
     max_workers = min(total_files, effective_n_procs)
@@ -284,6 +279,7 @@ def scan_directory(
                 compute_hash,
                 compute_stats,
                 compute_frontmatter,
+                callback,
             ): fp
             for fp in file_paths
         }
@@ -329,6 +325,5 @@ def scan_directory(
     )
 
     result = AggregatedResult(metadata=metadata, files=results)
-    set_cached_scan_result(cache_key, result)
 
     return result

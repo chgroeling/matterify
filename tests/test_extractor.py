@@ -11,6 +11,14 @@ from matterify.extractor import (
 from matterify.models import FileEntry
 
 
+def _count_lines_callback(content: str) -> dict[str, object]:
+    return {"line_count": len(content.splitlines())}
+
+
+def _return_none_callback(_content: str) -> dict[str, object] | None:
+    return None
+
+
 class TestExtractFrontmatterFromContent:
     """Tests for _extract_frontmatter_from_content."""
 
@@ -355,3 +363,63 @@ class TestScanDirectory:
         assert result.files[0].stats is None
         assert result.metadata.files_with_frontmatter is None
         assert result.metadata.files_without_frontmatter is None
+
+
+class TestCallback:
+    """Tests for the callback parameter."""
+
+    def test_callback_receives_content(self, tmp_path: Path) -> None:
+        project = tmp_path / "project"
+        project.mkdir()
+        (project / "test.md").write_text("---\ntitle: Test\n---\nHello\nWorld\n", encoding="utf-8")
+        result = scan_directory(project, callback=_count_lines_callback)
+        assert result.files[0].custom_data is not None
+        assert result.files[0].custom_data["line_count"] == 5
+
+    def test_callback_returns_none(self, tmp_path: Path) -> None:
+        project = tmp_path / "project"
+        project.mkdir()
+        (project / "test.md").write_text("---\ntitle: Test\n---\nContent", encoding="utf-8")
+        result = scan_directory(project, callback=_return_none_callback)
+        assert result.files[0].custom_data is None
+
+    def test_callback_none_default(self, tmp_path: Path) -> None:
+        project = tmp_path / "project"
+        project.mkdir()
+        (project / "test.md").write_text("---\ntitle: Test\n---\nContent", encoding="utf-8")
+        result = scan_directory(project)
+        assert result.files[0].custom_data is None
+
+    def test_callback_with_mixed_files(self, tmp_path: Path) -> None:
+        project = tmp_path / "project"
+        project.mkdir()
+        (project / "valid.md").write_text("---\ntitle: Valid\n---\nContent", encoding="utf-8")
+        (project / "no_fm.md").write_text("# No frontmatter", encoding="utf-8")
+        result = scan_directory(project, callback=_count_lines_callback)
+        for entry in result.files:
+            assert entry.custom_data is not None
+            assert "line_count" in entry.custom_data
+
+    def test_worker_callback(self, tmp_path: Path) -> None:
+        file_path = tmp_path / "test.md"
+        file_path.write_text("---\ntitle: Test\n---\nLine1\nLine2\n", encoding="utf-8")
+        result = _worker_extract(
+            str(tmp_path),
+            str(file_path),
+            compute_hash=True,
+            compute_stats=True,
+            compute_frontmatter=True,
+            callback=_count_lines_callback,
+        )
+        assert result.custom_data is not None
+        assert result.custom_data["line_count"] == 5
+
+    def test_callback_without_frontmatter(self, tmp_path: Path) -> None:
+        project = tmp_path / "project"
+        project.mkdir()
+        (project / "test.md").write_text("---\ntitle: Test\n---\nContent", encoding="utf-8")
+        result = scan_directory(project, compute_frontmatter=False, callback=_count_lines_callback)
+        assert result.files[0].status == "ok"
+        assert result.files[0].frontmatter is None
+        assert result.files[0].custom_data is not None
+        assert result.files[0].custom_data["line_count"] == 4

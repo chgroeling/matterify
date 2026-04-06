@@ -4,9 +4,6 @@ from importlib.metadata import version
 
 __version__ = version("matterify")
 
-from matterify.cache import (
-    clear_cache as clear_cache,
-)
 from matterify.extractor import (
     scan_directory as scan_directory,
 )

@@ -14,8 +14,6 @@ and file statistics.
 - YAML frontmatter extraction with structured `ok`/`illegal` status reporting
 - Optional SHA-256 file hashes and file stats (size, mtime, atime)
 - Parallel scan workers for faster processing on larger vaults/projects
-- In-memory single-entry scan cache for repeated Python API calls
-- Cache control via `force_refresh=True` and `clear_cache()`
 
 ## Quick Start
 
@@ -98,18 +96,11 @@ from matterify import (
 Scan directory and aggregate frontmatter using parallel workers. Returns an
 `AggregatedResult` dataclass.
 
-`scan_directory()` uses an in-memory single-entry cache keyed by directory and scan options.
-Repeated calls with the same inputs return the cached result unless `force_refresh=True` is
-passed. Use `clear_cache()` to manually invalidate the cache.
-
 ```python
 from pathlib import Path
 from matterify import scan_directory
 
 result = scan_directory(Path("./docs"))
-
-# Bypass in-memory cache and force recompute
-fresh_result = scan_directory(Path("./docs"), force_refresh=True)
 
 # AggregatedResult contains:
 # - result.metadata: ScanMetadata with scan statistics
@@ -124,15 +115,30 @@ print(result.metadata.scan_duration_seconds)
 for entry in result.files:
     print(entry.file_path, entry.status)
     print(entry.stats.file_size if entry.stats else None)
-
-# Clear the in-memory single-entry scan cache
-from matterify import clear_cache
-
-clear_cache()
 ```
 
-`force_refresh` and `clear_cache()` are Python API controls only; the CLI always performs
-a fresh scan per command invocation.
+#### Custom data callback
+
+You can pass a callback function to inject custom data into each file entry. The callback
+receives the raw file content as a string and should return a `dict` or `None`. The result
+is stored in the `custom_data` field of each `FileEntry`.
+
+```python
+from pathlib import Path
+from matterify import scan_directory
+
+def count_words(content: str) -> dict:
+    return {"word_count": len(content.split())}
+
+result = scan_directory(Path("./docs"), callback=count_words)
+
+for entry in result.files:
+    if entry.custom_data:
+        print(entry.file_path, entry.custom_data["word_count"])
+```
+
+**Important:** The callback must be a module-level function (picklable for multiprocessing),
+not a lambda or closure.
 
 ### Public Types
 

@@ -93,8 +93,8 @@ from matterify import (
 
 #### scan_directory
 
-Scan directory and aggregate frontmatter using parallel workers. Returns an
-`AggregatedResult` dataclass.
+Scan directory and aggregate frontmatter using parallel workers. Returns a
+`ScanResults` dataclass.
 
 ```python
 from pathlib import Path
@@ -102,7 +102,7 @@ from matterify import scan_directory
 
 result = scan_directory(Path("./docs"))
 
-# AggregatedResult contains:
+# ScanResults contains:
 # - result.metadata: ScanMetadata with scan statistics
 # - result.files: list of file entries with extraction results
 
@@ -146,7 +146,7 @@ not a lambda or closure.
 from matterify import (
     FileEntry,
     ScanMetadata,
-    AggregatedResult,
+    ScanResults,
 )
 
 # FileEntry: extracted frontmatter from a single file
@@ -155,8 +155,8 @@ entry: FileEntry
 # ScanMetadata: summary statistics about a scan
 metadata: ScanMetadata
 
-# AggregatedResult: holds metadata and file entries
-result: AggregatedResult
+# ScanResults: holds metadata and file entries
+result: ScanResults
 ```
 
 ## JSON Output Structure
@@ -166,7 +166,7 @@ When using CLI (stdout or `--output`), the payload has this shape:
 ```json
 {
   "metadata": {
-    "source_directory": "/path/to/docs",
+    "root": "/path/to/docs",
     "total_files": 10,
     "files_with_frontmatter": 8,
     "files_without_frontmatter": 2,

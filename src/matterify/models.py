@@ -29,6 +29,7 @@ class FileEntry:
         error: Error description if status is "illegal".
         stats: File statistics (size and timestamps).
         file_hash: SHA-256 hash of file content, or None if not computed.
+        custom_data: Custom data injected by callback function, or None if no callback provided.
     """
 
     file_path: str
@@ -45,7 +46,7 @@ class ScanMetadata:
     """Summary statistics about a scan operation.
 
     Attributes:
-        source_directory: Absolute path to the scanned directory.
+        root: Absolute path to the scanned directory.
         total_files: Total number of Markdown files discovered.
         files_with_frontmatter: Count of files with valid frontmatter.
         files_without_frontmatter: Count of files without frontmatter.
@@ -55,7 +56,7 @@ class ScanMetadata:
         throughput_files_per_second: Number of files processed per second.
     """
 
-    source_directory: str
+    root: str
     total_files: int
     files_with_frontmatter: int | None
     files_without_frontmatter: int | None
@@ -66,7 +67,7 @@ class ScanMetadata:
 
 
 @dataclass(frozen=True)
-class AggregatedResult:
+class ScanResults:
     """Final output structure containing all scan results.
 
     Attributes:

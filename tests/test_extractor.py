@@ -2,7 +2,7 @@
 
 from pathlib import Path
 
-from matterify import AggregatedResult
+from matterify import ScanResults
 from matterify.extractor import (
     _extract_frontmatter_from_content,
     _worker_extract,
@@ -233,7 +233,7 @@ class TestWorkerExtract:
 
 
 class TestScanDirectory:
-    """Tests for scan_directory returning AggregatedResult."""
+    """Tests for scan_directory returning ScanResults."""
 
     def test_aggregate_collects_all_files(self, sample_project: Path) -> None:
         result = scan_directory(sample_project)
@@ -243,7 +243,7 @@ class TestScanDirectory:
 
     def test_aggregate_metadata_accuracy(self, sample_project: Path) -> None:
         result = scan_directory(sample_project)
-        assert result.metadata.source_directory == str(sample_project)
+        assert result.metadata.root == str(sample_project)
         assert result.metadata.errors == 0
 
     def test_aggregate_file_paths_relative(self, sample_project: Path) -> None:
@@ -258,7 +258,7 @@ class TestScanDirectory:
 
     def test_aggregate_returns_dataclass(self, sample_project: Path) -> None:
         result = scan_directory(sample_project)
-        assert isinstance(result, AggregatedResult)
+        assert isinstance(result, ScanResults)
 
     def test_aggregate_sorted_by_path(self, sample_project: Path) -> None:
         result = scan_directory(sample_project)

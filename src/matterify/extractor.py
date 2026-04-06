@@ -13,7 +13,7 @@ import yaml
 from structlog import get_logger
 
 from matterify.constants import BLACKLIST, DEFAULT_N_PROCS
-from matterify.models import AggregatedResult, FileEntry, FileStats, ScanMetadata
+from matterify.models import FileEntry, FileStats, ScanMetadata, ScanResults
 from matterify.scanner import iter_markdown_files
 
 logger = get_logger(__name__)
@@ -181,18 +181,18 @@ def _worker_extract(
 
 
 def scan_directory(
-    directory: Path,
+    root: Path,
     n_procs: int | None = None,
     blacklist: tuple[str, ...] | None = None,
     compute_hash: bool = True,
     compute_stats: bool = True,
     compute_frontmatter: bool = True,
     callback: ContentCallback | None = None,
-) -> AggregatedResult:
+) -> ScanResults:
     """Scan directory and aggregate frontmatter using concurrent workers.
 
     Args:
-        directory: Root directory to scan.
+        root: Root directory to scan.
         n_procs: Worker process count (default: auto-detect CPU cores, capped at file count).
         blacklist: Directory names to exclude from traversal.
         compute_hash: Whether to compute SHA-256 hash for each file (default: True).
@@ -202,7 +202,7 @@ def scan_directory(
             Must be picklable (module-level function, not lambda or closure).
 
     Returns:
-        AggregatedResult with metadata and file entries.
+        ScanResults with metadata and file entries.
 
     Example:
         ```python
@@ -217,28 +217,27 @@ def scan_directory(
         ```
     """
 
+    start_time = time.perf_counter()
+
     effective_blacklist = blacklist if blacklist is not None else BLACKLIST
     effective_n_procs = n_procs if n_procs is not None else os.cpu_count()
     effective_n_procs = effective_n_procs if effective_n_procs is not None else DEFAULT_N_PROCS
 
     logger.debug(
         "starting_scan",
-        directory=str(directory),
+        root=str(root),
         blacklist=effective_blacklist,
         n_procs=effective_n_procs,
     )
 
-    start_time = time.perf_counter()
-    file_paths = list(iter_markdown_files(directory, blacklist=effective_blacklist))
+    file_paths = list(iter_markdown_files(root, blacklist=effective_blacklist))
     total_files = len(file_paths)
-
-    logger.debug("files_discovered", count=total_files, directory=str(directory))
 
     if total_files == 0:
         duration = time.perf_counter() - start_time
         fm_none = None if not compute_frontmatter else 0
         metadata = ScanMetadata(
-            source_directory=str(directory),
+            root=str(root),
             total_files=0,
             files_with_frontmatter=fm_none,
             files_without_frontmatter=fm_none,
@@ -247,13 +246,13 @@ def scan_directory(
             avg_duration_per_file_ms=0.0,
             throughput_files_per_second=0.0,
         )
-        result = AggregatedResult(metadata=metadata, files=[])
+        result = ScanResults(metadata=metadata, files=[])
         return result
 
     if not compute_frontmatter and not compute_hash and not compute_stats:
         duration = time.perf_counter() - start_time
         metadata = ScanMetadata(
-            source_directory=str(directory),
+            root=str(root),
             total_files=total_files,
             files_with_frontmatter=None,
             files_without_frontmatter=None,
@@ -262,7 +261,7 @@ def scan_directory(
             avg_duration_per_file_ms=0.0,
             throughput_files_per_second=0.0,
         )
-        result = AggregatedResult(metadata=metadata, files=[])
+        result = ScanResults(metadata=metadata, files=[])
         return result
 
     max_workers = min(total_files, effective_n_procs)
@@ -274,7 +273,7 @@ def scan_directory(
         future_to_path = {
             executor.submit(
                 _worker_extract,
-                str(directory),
+                str(root),
                 str(fp),
                 compute_hash,
                 compute_stats,
@@ -304,7 +303,7 @@ def scan_directory(
     throughput = (total_files / duration) if duration > 0 else 0.0
 
     metadata = ScanMetadata(
-        source_directory=str(directory),
+        root=str(root),
         total_files=total_files,
         files_with_frontmatter=files_with_fm,
         files_without_frontmatter=files_without_fm,
@@ -315,7 +314,7 @@ def scan_directory(
     )
 
     logger.info(
-        "aggregation_complete",
+        "scan_complete",
         total_files=total_files,
         with_frontmatter=files_with_fm,
         errors=errors,
@@ -324,6 +323,6 @@ def scan_directory(
         throughput=round(throughput, 1),
     )
 
-    result = AggregatedResult(metadata=metadata, files=results)
+    result = ScanResults(metadata=metadata, files=results)
 
     return result

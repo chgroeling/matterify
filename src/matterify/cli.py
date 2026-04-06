@@ -95,9 +95,9 @@ def main(
     if verbose:
         console.print(f"Scanning: {directory}")
 
-    from matterify import AggregatedResult
+    from matterify import ScanResults
 
-    result: AggregatedResult = scan_directory(
+    result: ScanResults = scan_directory(
         directory,
         n_procs=n_procs,
         blacklist=exclude,

@@ -8,11 +8,11 @@ from matterify.extractor import (
     scan_directory as scan_directory,
 )
 from matterify.models import (
-    AggregatedResult as AggregatedResult,
-)
-from matterify.models import (
     FileEntry as FileEntry,
 )
 from matterify.models import (
     ScanMetadata as ScanMetadata,
+)
+from matterify.models import (
+    ScanResults as ScanResults,
 )

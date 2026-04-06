@@ -11,7 +11,7 @@ matterify/
 ├── src/matterify/                            # Source (src-layout)
 │   ├── __init__.py                           # Metadata + public API entry points
 │   ├── extractor.py                          # Frontmatter extraction & aggregation logic
-│   ├── models.py                             # Frozen dataclasses (FrontmatterEntry, ScanMetadata, AggregatedResult)
+│   ├── models.py                             # Frozen dataclasses (FileEntry, ScanMetadata, ScanResults)
 │   ├── scanner.py                           # Directory traversal with blacklist filtering
 │   ├── cli.py                                # Click CLI entry point
 │   ├── logging.py                            # Debug & console config
@@ -100,21 +100,21 @@ matterify/
 ## Python API
 
 ### Public Functions
-- `scan_directory(directory: Path, n_procs: int = 4, blacklist: tuple[str, ...] | None = None, compute_hash: bool = True, compute_stats: bool = True) -> AggregatedResult`: Scan directory and aggregate frontmatter using parallel workers. Returns an `AggregatedResult` dataclass.
+- `scan_directory(root: Path, n_procs: int | None = None, blacklist: tuple[str, ...] | None = None, compute_hash: bool = True, compute_stats: bool = True, compute_frontmatter: bool = True, callback: ContentCallback | None = None) -> ScanResults`: Scan directory and aggregate frontmatter using parallel workers. Returns a `ScanResults` dataclass.
 
-### AggregatedResult Structure
-The `scan_directory()` function returns an `AggregatedResult` dataclass:
+### ScanResults Structure
+The `scan_directory()` function returns a `ScanResults` dataclass:
 ```python
 {
     "metadata": ScanMetadata(...),
-    "files": list[FrontmatterEntry]
+    "files": list[FileEntry]
 }
 ```
 
 Where `ScanMetadata` contains:
 ```python
 {
-    "source_directory": str,
+    "root": str,
     "total_files": int,
     "files_with_frontmatter": int,
     "files_without_frontmatter": int,
@@ -126,9 +126,9 @@ Where `ScanMetadata` contains:
 ```
 
 ### Public Types
-- `FrontmatterEntry`: Dataclass representing extracted frontmatter from a single file.
+- `FileEntry`: Dataclass representing extracted frontmatter from a single file.
 - `ScanMetadata`: Dataclass containing summary statistics about a scan.
-- `AggregatedResult`: Dataclass holding metadata and file entries.
+- `ScanResults`: Dataclass holding metadata and file entries.
 
 ### Status Values
 - `ok`: File successfully parsed with valid YAML frontmatter.

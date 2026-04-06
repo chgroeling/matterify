@@ -1,6 +1,6 @@
 """Tests for the models module."""
 
-from matterify.models import AggregatedResult, FileEntry, ScanMetadata
+from matterify.models import FileEntry, ScanMetadata, ScanResults
 
 
 class TestFileEntry:
@@ -72,7 +72,7 @@ class TestScanMetadata:
 
     def test_create_metadata(self) -> None:
         metadata = ScanMetadata(
-            source_directory="/path/to/dir",
+            root="/path/to/dir",
             total_files=10,
             files_with_frontmatter=8,
             files_without_frontmatter=1,
@@ -81,7 +81,7 @@ class TestScanMetadata:
             avg_duration_per_file_ms=150.0,
             throughput_files_per_second=6.7,
         )
-        assert metadata.source_directory == "/path/to/dir"
+        assert metadata.root == "/path/to/dir"
         assert metadata.total_files == 10
         assert metadata.files_with_frontmatter == 8
         assert metadata.files_without_frontmatter == 1
@@ -92,7 +92,7 @@ class TestScanMetadata:
 
     def test_immutability(self) -> None:
         metadata = ScanMetadata(
-            source_directory="/path",
+            root="/path",
             total_files=0,
             files_with_frontmatter=0,
             files_without_frontmatter=0,
@@ -108,12 +108,12 @@ class TestScanMetadata:
             pass
 
 
-class TestAggregatedResult:
-    """Tests for AggregatedResult dataclass."""
+class TestScanResults:
+    """Tests for ScanResults dataclass."""
 
     def test_create_result(self) -> None:
         metadata = ScanMetadata(
-            source_directory="/path",
+            root="/path",
             total_files=1,
             files_with_frontmatter=1,
             files_without_frontmatter=0,
@@ -128,14 +128,14 @@ class TestAggregatedResult:
             status="ok",
             error=None,
         )
-        result = AggregatedResult(metadata=metadata, files=[entry])
+        result = ScanResults(metadata=metadata, files=[entry])
         assert result.metadata.total_files == 1
         assert len(result.files) == 1
         assert result.files[0].status == "ok"
 
     def test_aggregated_result_immutability(self) -> None:
         metadata = ScanMetadata(
-            source_directory="/path",
+            root="/path",
             total_files=0,
             files_with_frontmatter=0,
             files_without_frontmatter=0,
@@ -144,7 +144,7 @@ class TestAggregatedResult:
             avg_duration_per_file_ms=0.0,
             throughput_files_per_second=0.0,
         )
-        result = AggregatedResult(metadata=metadata, files=[])
+        result = ScanResults(metadata=metadata, files=[])
         try:
             result.files = []
             raise AssertionError("Should not be able to modify frozen dataclass")

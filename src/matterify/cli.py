@@ -84,7 +84,7 @@ def main(
         output=str(output) if output else None,
         n_procs=n_procs,
         verbose=verbose,
-        exclude=list(exclude) if exclude else [],
+        exclude=list(exclude) if exclude else None,
         compute_hash=compute_hash,
         compute_stats=compute_stats,
         compute_frontmatter=compute_frontmatter,
@@ -100,7 +100,7 @@ def main(
     result: ScanResults = scan_directory(
         directory,
         n_procs=n_procs,
-        blacklist=exclude,
+        blacklist=exclude if exclude else None,
         compute_hash=compute_hash,
         compute_stats=compute_stats,
         compute_frontmatter=compute_frontmatter,

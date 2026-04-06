@@ -12,7 +12,7 @@ matterify/
 │   ├── __init__.py                           # Metadata + public API entry points
 │   ├── extractor.py                          # Frontmatter extraction & aggregation logic
 │   ├── models.py                             # Frozen dataclasses (FileEntry, ScanMetadata, ScanResults)
-│   ├── scanner.py                           # Directory traversal with blacklist filtering
+│   ├── scanner.py                           # Directory traversal with exclude filtering
 │   ├── cli.py                                # Click CLI entry point
 │   ├── logging.py                            # Debug & console config
 │   └── utils/                                # Utility modules
@@ -100,7 +100,7 @@ matterify/
 ## Python API
 
 ### Public Functions
-- `scan_directory(root: Path, n_procs: int | None = None, blacklist: tuple[str, ...] | None = None, compute_hash: bool = True, compute_stats: bool = True, compute_frontmatter: bool = True, callback: ContentCallback | None = None) -> ScanResults`: Scan directory and aggregate frontmatter using parallel workers. Returns a `ScanResults` dataclass.
+- `scan_directory(root: Path, n_procs: int | None = None, exclude: tuple[str, ...] | None = None, compute_hash: bool = True, compute_stats: bool = True, compute_frontmatter: bool = True, callback: ContentCallback | None = None) -> ScanResults`: Scan directory and aggregate frontmatter using parallel workers. Returns a `ScanResults` dataclass.
 
 ### ScanResults Structure
 The `scan_directory()` function returns a `ScanResults` dataclass:
@@ -172,13 +172,13 @@ matterify DIRECTORY [OPTIONS]
 
 ### Module Overview
 - `extractor.py`: Core extraction logic - parsing YAML frontmatter, parallel processing with `ProcessPoolExecutor`, JSON export.
-- `scanner.py`: Directory traversal with blacklist filtering using `Path.walk()`.
+- `scanner.py`: Directory traversal with exclude filtering using `Path.walk()`.
 - `models.py`: Frozen dataclasses for type-safe data structures.
 - `logging.py`: `structlog` configuration and `rich.Console` factory.
 - `cli.py`: Click-based CLI entry point.
 
 ### Extraction Pipeline
-1. `iter_markdown_files()` discovers all `.md`/`.markdown` files, respecting blacklist.
+1. `iter_markdown_files()` discovers all `.md`/`.markdown` files, respecting exclusions.
 2. `scan_directory()` distributes files across `ProcessPoolExecutor` workers.
 3. Each worker runs `extract_frontmatter()` which:
    - Reads file content as UTF-8

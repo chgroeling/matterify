@@ -183,7 +183,7 @@ def _worker_extract(
 def scan_directory(
     root: Path,
     n_procs: int | None = None,
-    blacklist: tuple[str, ...] | None = None,
+    exclude: tuple[str, ...] | None = None,
     compute_hash: bool = True,
     compute_stats: bool = True,
     compute_frontmatter: bool = True,
@@ -194,7 +194,7 @@ def scan_directory(
     Args:
         root: Root directory to scan.
         n_procs: Worker process count (default: auto-detect CPU cores, capped at file count).
-        blacklist: Directory names to exclude from traversal.
+        exclude: Directory names to exclude from traversal.
         compute_hash: Whether to compute SHA-256 hash for each file (default: True).
         compute_stats: Whether to compute file stats (size, mtime, atime) (default: True).
         compute_frontmatter: Whether to extract YAML frontmatter (default: True).
@@ -219,18 +219,18 @@ def scan_directory(
 
     start_time = time.perf_counter()
 
-    effective_blacklist = blacklist if blacklist is not None else BLACKLIST
+    effective_exclude = exclude if exclude is not None else BLACKLIST
     effective_n_procs = n_procs if n_procs is not None else os.cpu_count()
     effective_n_procs = effective_n_procs if effective_n_procs is not None else DEFAULT_N_PROCS
 
     logger.debug(
         "starting_scan",
         root=str(root),
-        blacklist=effective_blacklist,
+        exclude=effective_exclude,
         n_procs=effective_n_procs,
     )
 
-    file_paths = list(iter_markdown_files(root, blacklist=effective_blacklist))
+    file_paths = list(iter_markdown_files(root, exclude=effective_exclude))
     total_files = len(file_paths)
 
     if total_files == 0:

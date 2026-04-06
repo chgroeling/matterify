@@ -5,19 +5,19 @@ from pathlib import Path
 from matterify.scanner import BLACKLIST, iter_markdown_files
 
 
-class TestBlacklist:
-    """Tests for default blacklist."""
+class TestExclude:
+    """Tests for default exclude list."""
 
-    def test_blacklist_is_tuple(self) -> None:
+    def test_exclude_is_tuple(self) -> None:
         assert isinstance(BLACKLIST, tuple)
 
-    def test_blacklist_contains_git(self) -> None:
+    def test_exclude_contains_git(self) -> None:
         assert ".git" in BLACKLIST
 
-    def test_blacklist_contains_node_modules(self) -> None:
+    def test_exclude_contains_node_modules(self) -> None:
         assert "node_modules" in BLACKLIST
 
-    def test_blacklist_contains_venv(self) -> None:
+    def test_exclude_contains_venv(self) -> None:
         assert "venv" in BLACKLIST
         assert ".venv" in BLACKLIST
 
@@ -47,7 +47,7 @@ class TestIterMarkdownFiles:
         files = list(iter_markdown_files(tmp_path))
         assert len(files) == 2
 
-    def test_prunes_blacklisted_dirs(self, tmp_path: Path) -> None:
+    def test_prunes_excluded_dirs(self, tmp_path: Path) -> None:
         git_dir = tmp_path / ".git"
         git_dir.mkdir()
         (git_dir / "skip.md").write_text("# Skip", encoding="utf-8")
@@ -69,12 +69,12 @@ class TestIterMarkdownFiles:
         files = list(iter_markdown_files(tmp_path))
         assert files == []
 
-    def test_custom_blacklist(self, tmp_path: Path) -> None:
+    def test_custom_exclude(self, tmp_path: Path) -> None:
         custom = tmp_path / "custom_dir"
         custom.mkdir()
         (custom / "skip.md").write_text("# Skip", encoding="utf-8")
         (tmp_path / "keep.md").write_text("# Keep", encoding="utf-8")
-        files = list(iter_markdown_files(tmp_path, blacklist=("custom_dir",)))
+        files = list(iter_markdown_files(tmp_path, exclude=("custom_dir",)))
         assert len(files) == 1
         assert files[0].name == "keep.md"
 

@@ -14,27 +14,27 @@ _MARKDOWN_SUFFIXES = {".md", ".markdown"}
 
 def iter_markdown_files(
     root: Path,
-    blacklist: tuple[str, ...] = BLACKLIST,
+    exclude: tuple[str, ...] = BLACKLIST,
 ) -> Iterable[Path]:
     """Yield relative paths to Markdown files under root.
 
-    Recursively walks the directory tree, pruning blacklisted directories
+    Recursively walks the directory tree, pruning excluded directories
     in-place to avoid unnecessary I/O.
 
     Args:
         root: Root directory to scan.
-        blacklist: Directory names to exclude from traversal.
+        exclude: Directory names to exclude from traversal.
 
     Yields:
         Relative paths to discovered Markdown files.
     """
-    logger.debug("starting_directory_traversal", root=str(root), blacklist=blacklist)
+    logger.debug("starting_directory_traversal", root=str(root), exclude=exclude)
 
-    blacklist_set = set(blacklist)
+    exclude_set = set(exclude)
     discovered_count = 0
 
     for dirpath, dirnames, filenames in root.walk():
-        dirnames[:] = [d for d in dirnames if d not in blacklist_set]
+        dirnames[:] = [d for d in dirnames if d not in exclude_set]
         for filename in filenames:
             suffix = Path(filename).suffix.lower()
             if suffix in _MARKDOWN_SUFFIXES:

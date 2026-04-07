@@ -120,14 +120,14 @@ for entry in result.files:
 #### Custom data callback
 
 You can pass a callback function to inject custom data into each file entry. The callback
-receives the raw file content as a string and should return a `dict` or `None`. The result
+receives the raw file content as a string and should return any value or `None`. The result
 is stored in the `custom_data` field of each `FileEntry`.
 
 ```python
 from pathlib import Path
 from matterify import scan_directory
 
-def count_words(content: str) -> dict:
+def count_words(content: str) -> object:
     return {"word_count": len(content.split())}
 
 result = scan_directory(Path("./docs"), callback=count_words)

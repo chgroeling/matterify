@@ -11,11 +11,11 @@ from matterify.extractor import (
 from matterify.models import FileEntry
 
 
-def _count_lines_callback(content: str) -> dict[str, object]:
+def _count_lines_callback(content: str) -> object:
     return {"line_count": len(content.splitlines())}
 
 
-def _return_none_callback(_content: str) -> dict[str, object] | None:
+def _return_none_callback(_content: str) -> object | None:
     return None
 
 

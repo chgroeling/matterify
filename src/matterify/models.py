@@ -38,7 +38,7 @@ class FileEntry:
     error: str | None
     stats: FileStats | None = None
     file_hash: str | None = None
-    custom_data: dict[str, object] | None = None
+    custom_data: object | None = None
 
 
 @dataclass(frozen=True)

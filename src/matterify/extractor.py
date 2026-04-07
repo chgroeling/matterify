@@ -20,7 +20,7 @@ logger = get_logger(__name__)
 
 __all__ = ["scan_directory"]
 
-type ContentCallback = Callable[[str], dict[str, object] | None]
+type ContentCallback = Callable[[str], object | None]
 
 
 def _serialize_datetime(
@@ -108,7 +108,7 @@ def _worker_extract(
         compute_hash: Whether to compute SHA-256 hash.
         compute_stats: Whether to compute file statistics.
         compute_frontmatter: Whether to extract YAML frontmatter.
-        callback: Optional callable that receives file content and returns custom data dict.
+        callback: Optional callable that receives file content and returns custom data.
             Must be picklable (module-level function, not lambda or closure).
 
     Returns:
@@ -119,7 +119,7 @@ def _worker_extract(
     file_stats: FileStats | None = None
     file_hash: str | None = None
     frontmatter: dict[str, object] | None = None
-    custom_data: dict[str, object] | None = None
+    custom_data: object | None = None
     status: str
     error: str | None
     fm_file_path = file_str
@@ -198,7 +198,7 @@ def scan_directory(
         compute_hash: Whether to compute SHA-256 hash for each file (default: True).
         compute_stats: Whether to compute file stats (size, mtime, atime) (default: True).
         compute_frontmatter: Whether to extract YAML frontmatter (default: True).
-        callback: Optional callable that receives file content and returns custom data dict.
+        callback: Optional callable that receives file content and returns custom data.
             Must be picklable (module-level function, not lambda or closure).
 
     Returns:

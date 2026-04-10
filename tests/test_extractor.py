@@ -364,6 +364,42 @@ class TestScanDirectory:
         assert result.metadata.files_with_frontmatter is None
         assert result.metadata.files_without_frontmatter is None
 
+    def test_aggregate_includes_non_markdown_file(self, tmp_path: Path) -> None:
+        project = tmp_path / "project"
+        project.mkdir()
+        (project / "main.md").write_text("---\ntitle: Main\n---\nContent", encoding="utf-8")
+        (project / "extra.txt").write_text("---\ntitle: Extra\n---\nContent", encoding="utf-8")
+
+        result = scan_directory(project, include_files=(Path("extra.txt"),))
+
+        assert result.metadata.total_files == 2
+        file_paths = [entry.file_path for entry in result.files]
+        assert "extra.txt" in file_paths
+
+    def test_aggregate_includes_file_outside_root(self, tmp_path: Path) -> None:
+        project = tmp_path / "project"
+        project.mkdir()
+        (project / "main.md").write_text("---\ntitle: Main\n---\nContent", encoding="utf-8")
+        external_file = tmp_path / "external.md"
+        external_file.write_text("---\ntitle: External\n---\nContent", encoding="utf-8")
+
+        result = scan_directory(project, include_files=(external_file,))
+
+        assert result.metadata.total_files == 2
+        file_paths = [entry.file_path for entry in result.files]
+        assert str(external_file.resolve()) in file_paths
+
+    def test_aggregate_deduplicates_included_files(self, tmp_path: Path) -> None:
+        project = tmp_path / "project"
+        project.mkdir()
+        main_file = project / "main.md"
+        main_file.write_text("---\ntitle: Main\n---\nContent", encoding="utf-8")
+
+        result = scan_directory(project, include_files=(main_file, Path("main.md")))
+
+        assert result.metadata.total_files == 1
+        assert len(result.files) == 1
+
 
 class TestCallback:
     """Tests for the callback parameter."""

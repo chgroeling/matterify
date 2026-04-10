@@ -43,6 +43,13 @@ logger = get_logger(__name__)
     help="Directories to exclude from scanning.",
 )
 @click.option(
+    "--include",
+    "-i",
+    multiple=True,
+    type=click.Path(path_type=Path),
+    help="Additional file paths to include in scanning.",
+)
+@click.option(
     "--hash/--no-hash",
     "compute_hash",
     default=True,
@@ -69,6 +76,7 @@ def main(
     n_procs: int | None,
     verbose: bool,
     exclude: tuple[str, ...],
+    include: tuple[Path, ...],
     compute_hash: bool,
     compute_stats: bool,
     compute_frontmatter: bool,
@@ -85,6 +93,7 @@ def main(
         n_procs=n_procs,
         verbose=verbose,
         exclude=list(exclude) if exclude else None,
+        include=[str(path) for path in include] if include else None,
         compute_hash=compute_hash,
         compute_stats=compute_stats,
         compute_frontmatter=compute_frontmatter,
@@ -101,6 +110,7 @@ def main(
         directory,
         n_procs=n_procs,
         exclude=exclude if exclude else None,
+        include_files=include if include else None,
         compute_hash=compute_hash,
         compute_stats=compute_stats,
         compute_frontmatter=compute_frontmatter,

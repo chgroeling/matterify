@@ -47,6 +47,7 @@ matterify DIRECTORY [OPTIONS]
 - `--n-procs INT` - Worker process count (default: auto-detect CPU cores)
 - `-v, --verbose` - Show progress and summary
 - `-e, --exclude TEXT` - Additional directories to exclude
+- `-i, --include PATH` - Additional file paths to include in scan (repeatable)
 - `--hash / --no-hash` - Enable/disable SHA-256 hash computation
 - `--stats / --no-stats` - Enable/disable file statistics (size, modified time, access time)
 - `--frontmatter / --no-frontmatter` - Enable/disable YAML frontmatter extraction
@@ -75,6 +76,9 @@ matterify ./docs --no-frontmatter
 
 # Exclude additional directories
 matterify ./docs -e build -e .cache
+
+# Include additional files (any extension)
+matterify ./docs -i notes.txt -i ../shared/changelog.txt
 
 # Full help
 matterify --help

@@ -184,6 +184,7 @@ def scan_directory(
     root: Path,
     n_procs: int | None = None,
     exclude: tuple[str, ...] | None = None,
+    include_files: tuple[Path, ...] | None = None,
     compute_hash: bool = True,
     compute_stats: bool = True,
     compute_frontmatter: bool = True,
@@ -195,6 +196,8 @@ def scan_directory(
         root: Root directory to scan.
         n_procs: Worker process count (default: auto-detect CPU cores, capped at file count).
         exclude: Directory names to exclude from traversal.
+        include_files: Additional file paths to include in the scan, even if they are
+            outside the root or do not have a Markdown extension.
         compute_hash: Whether to compute SHA-256 hash for each file (default: True).
         compute_stats: Whether to compute file stats (size, mtime, atime) (default: True).
         compute_frontmatter: Whether to extract YAML frontmatter (default: True).
@@ -218,6 +221,7 @@ def scan_directory(
     """
 
     start_time = time.perf_counter()
+    resolved_root = root.resolve()
 
     effective_exclude = exclude if exclude is not None else BLACKLIST
     effective_n_procs = n_procs if n_procs is not None else os.cpu_count()
@@ -230,7 +234,27 @@ def scan_directory(
         n_procs=effective_n_procs,
     )
 
-    file_paths = list(iter_markdown_files(root, exclude=effective_exclude))
+    file_path_map: dict[Path, str] = {}
+
+    for rel_path in iter_markdown_files(root, exclude=effective_exclude):
+        resolved_path = (resolved_root / rel_path).resolve()
+        file_path_map[resolved_path] = str(rel_path)
+
+    if include_files is not None:
+        for include_path in include_files:
+            candidate = include_path if include_path.is_absolute() else resolved_root / include_path
+            resolved_path = candidate.resolve()
+            if resolved_path in file_path_map:
+                continue
+
+            try:
+                display_path = str(resolved_path.relative_to(resolved_root))
+            except ValueError:
+                display_path = str(resolved_path)
+
+            file_path_map[resolved_path] = display_path
+
+    file_paths = list(file_path_map.values())
     total_files = len(file_paths)
 
     if total_files == 0:
@@ -273,7 +297,7 @@ def scan_directory(
         future_to_path = {
             executor.submit(
                 _worker_extract,
-                str(root),
+                str(resolved_root),
                 str(fp),
                 compute_hash,
                 compute_stats,

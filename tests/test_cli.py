@@ -76,3 +76,20 @@ def test_scan_no_frontmatter(sample_project: Path) -> None:
     assert data["files"][0]["status"] == "ok"
     assert data["files"][0]["frontmatter"] is None
     assert data["metadata"]["files_with_frontmatter"] is None
+
+
+def test_scan_with_include_option(tmp_path: Path) -> None:
+    runner = CliRunner()
+    project = tmp_path / "project"
+    project.mkdir()
+    (project / "main.md").write_text("---\ntitle: Main\n---\nContent", encoding="utf-8")
+    extra_file = project / "extra.txt"
+    extra_file.write_text("---\ntitle: Extra\n---\nContent", encoding="utf-8")
+
+    result = runner.invoke(main, [str(project), "--include", str(extra_file)])
+
+    assert result.exit_code == 0
+    data = json.loads(result.output)
+    assert data["metadata"]["total_files"] == 2
+    file_paths = [entry["file_path"] for entry in data["files"]]
+    assert "extra.txt" in file_paths

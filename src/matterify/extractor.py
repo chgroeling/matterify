@@ -203,7 +203,7 @@ def scan_directory(
     Args:
         root: Root directory to scan.
         n_procs: Worker process count (default: auto-detect CPU cores, capped at file count).
-        exclude: Directory names to exclude from traversal.
+        exclude: Glob patterns to exclude from traversal (e.g., "**/.git", "**/__pycache__").
         include_files: Additional file paths to include in the scan, even if they are
             outside the root or do not have a Markdown extension.
         compute_hash: Whether to compute SHA-256 hash for each file (default: True).
@@ -222,7 +222,7 @@ def scan_directory(
         >>> result.metadata.total_files
         5
         >>> result.files[0].file_path
-        'getting-started.md'
+        Path('getting-started.md')
         >>> result.files[0].frontmatter
         {'title': 'Getting Started', 'version': '1.0.0'}
         ```

@@ -18,6 +18,14 @@ if TYPE_CHECKING:
 logger = get_logger(__name__)
 
 
+def _json_serializer(obj: object) -> str:
+    """Serialize Path objects to strings for JSON output."""
+    if isinstance(obj, Path):
+        return str(obj)
+    msg = f"Object of type {type(obj).__name__} is not JSON serializable"
+    raise TypeError(msg)
+
+
 @click.command()
 @click.version_option(version=__version__, prog_name="matterify")
 @click.option("--debug", is_flag=True, help="Enable debug logging.")
@@ -119,7 +127,10 @@ def main(
     result_dict = asdict(result)
 
     if output:
-        output.write_text(_json.dumps(result_dict, indent=2, ensure_ascii=False), encoding="utf-8")
+        output.write_text(
+            _json.dumps(result_dict, indent=2, ensure_ascii=False, default=_json_serializer),
+            encoding="utf-8",
+        )
         if verbose:
             console.print(f"Exported to: {output}")
             m = result.metadata
@@ -129,4 +140,4 @@ def main(
             console.print(f"Errors: {m.errors}")
             console.print(f"Duration: {m.scan_duration_seconds}s")
     else:
-        click.echo(_json.dumps(result_dict, indent=2))
+        click.echo(_json.dumps(result_dict, indent=2, ensure_ascii=False, default=_json_serializer))

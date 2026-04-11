@@ -40,13 +40,13 @@ def _serialize_datetime(
 
 def _extract_frontmatter_from_content(
     content: str,
-    file_path_str: str,
-) -> tuple[str, dict[str, object] | None, str, str | None]:
+    file_path: Path,
+) -> tuple[Path, dict[str, object] | None, str, str | None]:
     """Extract and validate YAML frontmatter from file content.
 
     Args:
         content: The file content as a string.
-        file_path_str: The file path as a string for the entry.
+        file_path: The file path for the entry.
 
     Returns:
         Tuple of (file_path, frontmatter, status, error).
@@ -54,25 +54,25 @@ def _extract_frontmatter_from_content(
     content = content.strip()
 
     if not content.startswith("---"):
-        return (file_path_str, None, "illegal", "no_frontmatter")
+        return (file_path, None, "illegal", "no_frontmatter")
 
     parts = content.split("---", 2)
     if len(parts) < 3:
-        return (file_path_str, None, "illegal", "no_frontmatter")
+        return (file_path, None, "illegal", "no_frontmatter")
 
     yaml_block = parts[1]
     try:
         data = yaml.safe_load(yaml_block)
     except yaml.YAMLError:
-        return (file_path_str, None, "illegal", "yaml_parse_error")
+        return (file_path, None, "illegal", "yaml_parse_error")
 
     if not isinstance(data, dict):
-        return (file_path_str, None, "illegal", "non_dict_frontmatter")
+        return (file_path, None, "illegal", "non_dict_frontmatter")
 
     data = _serialize_datetime(data)
     serialized = cast("dict[str, object] | None", data)
 
-    return (file_path_str, serialized, "ok", None)
+    return (file_path, serialized, "ok", None)
 
 
 def _compute_file_hash(content: bytes) -> str | None:
@@ -91,8 +91,8 @@ def _compute_file_hash(content: bytes) -> str | None:
 
 
 def _worker_extract(
-    root_str: str,
-    file_str: str,
+    root: Path,
+    file_path: Path,
     compute_hash: bool,
     compute_stats: bool,
     compute_frontmatter: bool,
@@ -103,8 +103,8 @@ def _worker_extract(
     Reads the file only when needed for hash or frontmatter extraction.
 
     Args:
-        root_str: Root directory as string.
-        file_str: Relative file path as string.
+        root: Root directory.
+        file_path: Relative file path.
         compute_hash: Whether to compute SHA-256 hash.
         compute_stats: Whether to compute file statistics.
         compute_frontmatter: Whether to extract YAML frontmatter.
@@ -114,7 +114,7 @@ def _worker_extract(
     Returns:
         Fully populated FileEntry for the given file.
     """
-    file_path = Path(root_str) / file_str
+    full_path = root / file_path
 
     file_stats: FileStats | None = None
     file_hash: str | None = None
@@ -122,11 +122,11 @@ def _worker_extract(
     custom_data: object | None = None
     status: str
     error: str | None
-    fm_file_path = file_str
+    fm_file_path = file_path
 
     if compute_stats:
         try:
-            stat_info = file_path.stat()
+            stat_info = full_path.stat()
             file_stats = FileStats(
                 file_size=stat_info.st_size,
                 modified_time=datetime.fromtimestamp(stat_info.st_mtime).isoformat(),
@@ -137,21 +137,29 @@ def _worker_extract(
 
     if compute_frontmatter or compute_hash or callback is not None:
         try:
-            raw_bytes = file_path.read_bytes()
+            raw_bytes = full_path.read_bytes()
         except OSError as exc:
             return FileEntry(
-                file_path=file_str,
+                file_path=file_path,
                 frontmatter=None,
                 status="illegal",
                 error=str(exc),
             )
 
         if compute_frontmatter or callback is not None:
-            content = raw_bytes.decode("utf-8")
+            try:
+                content = raw_bytes.decode("utf-8")
+            except UnicodeDecodeError as exc:
+                return FileEntry(
+                    file_path=file_path,
+                    frontmatter=None,
+                    status="illegal",
+                    error=f"decode_error: {exc}",
+                )
 
             if compute_frontmatter:
                 fm_file_path, frontmatter, status, error = _extract_frontmatter_from_content(
-                    content, file_str
+                    content, file_path
                 )
             else:
                 status = "ok"
@@ -234,11 +242,11 @@ def scan_directory(
         n_procs=effective_n_procs,
     )
 
-    file_path_map: dict[Path, str] = {}
+    file_path_map: dict[Path, Path] = {}
 
     for rel_path in iter_markdown_files(root, exclude=effective_exclude):
         resolved_path = (resolved_root / rel_path).resolve()
-        file_path_map[resolved_path] = str(rel_path)
+        file_path_map[resolved_path] = rel_path
 
     if include_files is not None:
         for include_path in include_files:
@@ -248,9 +256,9 @@ def scan_directory(
                 continue
 
             try:
-                display_path = str(resolved_path.relative_to(resolved_root))
+                display_path = resolved_path.relative_to(resolved_root)
             except ValueError:
-                display_path = str(resolved_path)
+                display_path = resolved_path
 
             file_path_map[resolved_path] = display_path
 
@@ -261,7 +269,7 @@ def scan_directory(
         duration = time.perf_counter() - start_time
         fm_none = None if not compute_frontmatter else 0
         metadata = ScanMetadata(
-            root=str(root),
+            root=root,
             total_files=0,
             files_with_frontmatter=fm_none,
             files_without_frontmatter=fm_none,
@@ -276,7 +284,7 @@ def scan_directory(
     if not compute_frontmatter and not compute_hash and not compute_stats:
         duration = time.perf_counter() - start_time
         metadata = ScanMetadata(
-            root=str(root),
+            root=root,
             total_files=total_files,
             files_with_frontmatter=None,
             files_without_frontmatter=None,
@@ -297,8 +305,8 @@ def scan_directory(
         future_to_path = {
             executor.submit(
                 _worker_extract,
-                str(resolved_root),
-                str(fp),
+                resolved_root,
+                fp,
                 compute_hash,
                 compute_stats,
                 compute_frontmatter,
@@ -327,7 +335,7 @@ def scan_directory(
     throughput = (total_files / duration) if duration > 0 else 0.0
 
     metadata = ScanMetadata(
-        root=str(root),
+        root=root,
         total_files=total_files,
         files_with_frontmatter=files_with_fm,
         files_without_frontmatter=files_without_fm,

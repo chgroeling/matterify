@@ -168,8 +168,8 @@ class TestWorkerExtract:
         file_path = tmp_path / "test.md"
         file_path.write_text("---\ntitle: Test\n---\nContent", encoding="utf-8")
         result = _worker_extract(
-            str(tmp_path),
-            str(file_path),
+            tmp_path,
+            file_path,
             compute_hash=True,
             compute_stats=True,
             compute_frontmatter=True,
@@ -185,8 +185,8 @@ class TestWorkerExtract:
         file_path = tmp_path / "test.md"
         file_path.write_text("---\ntitle: Test\n---\nContent", encoding="utf-8")
         result = _worker_extract(
-            str(tmp_path),
-            str(file_path),
+            tmp_path,
+            file_path,
             compute_hash=False,
             compute_stats=True,
             compute_frontmatter=True,
@@ -197,8 +197,8 @@ class TestWorkerExtract:
         file_path = tmp_path / "test.md"
         file_path.write_text("---\ntitle: Test\n---\nContent", encoding="utf-8")
         result = _worker_extract(
-            str(tmp_path),
-            str(file_path),
+            tmp_path,
+            file_path,
             compute_hash=False,
             compute_stats=False,
             compute_frontmatter=True,
@@ -210,8 +210,8 @@ class TestWorkerExtract:
         file_path = tmp_path / "test.md"
         file_path.write_text("---\ntitle: Test\n---\nContent", encoding="utf-8")
         result = _worker_extract(
-            str(tmp_path),
-            str(file_path),
+            tmp_path,
+            file_path,
             compute_hash=False,
             compute_stats=False,
             compute_frontmatter=False,
@@ -222,8 +222,8 @@ class TestWorkerExtract:
 
     def test_worker_handles_missing_file(self, tmp_path: Path) -> None:
         result = _worker_extract(
-            str(tmp_path),
-            str(tmp_path / "nonexistent.md"),
+            tmp_path,
+            tmp_path / "nonexistent.md",
             compute_hash=False,
             compute_stats=False,
             compute_frontmatter=True,
@@ -243,13 +243,13 @@ class TestScanDirectory:
 
     def test_aggregate_metadata_accuracy(self, sample_project: Path) -> None:
         result = scan_directory(sample_project)
-        assert result.metadata.root == str(sample_project)
+        assert result.metadata.root == sample_project
         assert result.metadata.errors == 0
 
     def test_aggregate_file_paths_relative(self, sample_project: Path) -> None:
         result = scan_directory(sample_project)
         for entry in result.files:
-            assert not entry.file_path.startswith("/")
+            assert not entry.file_path.is_absolute()
 
     def test_aggregate_empty_directory(self, tmp_path: Path) -> None:
         result = scan_directory(tmp_path)
@@ -299,7 +299,7 @@ class TestScanDirectory:
         (project / "keep.md").write_text("---\ntitle: Keep\n---\nContent", encoding="utf-8")
         result = scan_directory(project)
         assert result.metadata.total_files == 1
-        assert result.files[0].file_path == "keep.md"
+        assert result.files[0].file_path == Path("keep.md")
 
     def test_aggregate_timing(self, sample_project: Path) -> None:
         result = scan_directory(sample_project)
@@ -374,7 +374,7 @@ class TestScanDirectory:
 
         assert result.metadata.total_files == 2
         file_paths = [entry.file_path for entry in result.files]
-        assert "extra.txt" in file_paths
+        assert Path("extra.txt") in file_paths
 
     def test_aggregate_includes_file_outside_root(self, tmp_path: Path) -> None:
         project = tmp_path / "project"
@@ -387,7 +387,7 @@ class TestScanDirectory:
 
         assert result.metadata.total_files == 2
         file_paths = [entry.file_path for entry in result.files]
-        assert str(external_file.resolve()) in file_paths
+        assert external_file.resolve() in file_paths
 
     def test_aggregate_deduplicates_included_files(self, tmp_path: Path) -> None:
         project = tmp_path / "project"
@@ -440,8 +440,8 @@ class TestCallback:
         file_path = tmp_path / "test.md"
         file_path.write_text("---\ntitle: Test\n---\nLine1\nLine2\n", encoding="utf-8")
         result = _worker_extract(
-            str(tmp_path),
-            str(file_path),
+            tmp_path,
+            file_path,
             compute_hash=True,
             compute_stats=True,
             compute_frontmatter=True,

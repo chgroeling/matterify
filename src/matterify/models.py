@@ -1,6 +1,7 @@
 """Dataclass definitions for frontmatter extraction results."""
 
 from dataclasses import dataclass
+from pathlib import Path
 
 
 @dataclass(frozen=True)
@@ -32,7 +33,7 @@ class FileEntry:
         custom_data: Custom data injected by callback function, or None if no callback provided.
     """
 
-    file_path: str
+    file_path: Path
     frontmatter: dict[str, object] | None
     status: str
     error: str | None
@@ -56,7 +57,7 @@ class ScanMetadata:
         throughput_files_per_second: Number of files processed per second.
     """
 
-    root: str
+    root: Path
     total_files: int
     files_with_frontmatter: int | None
     files_without_frontmatter: int | None

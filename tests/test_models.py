@@ -1,5 +1,7 @@
 """Tests for the models module."""
 
+from pathlib import Path
+
 from matterify.models import FileEntry, ScanMetadata, ScanResults
 
 
@@ -8,31 +10,31 @@ class TestFileEntry:
 
     def test_create_ok_entry(self) -> None:
         entry = FileEntry(
-            file_path="docs/test.md",
+            file_path=Path("docs/test.md"),
             frontmatter={"title": "Test"},
             status="ok",
             error=None,
         )
-        assert entry.file_path == "docs/test.md"
+        assert entry.file_path == Path("docs/test.md")
         assert entry.frontmatter == {"title": "Test"}
         assert entry.status == "ok"
         assert entry.error is None
 
     def test_create_illegal_entry(self) -> None:
         entry = FileEntry(
-            file_path="notes/bad.md",
+            file_path=Path("notes/bad.md"),
             frontmatter=None,
             status="illegal",
             error="no_frontmatter",
         )
-        assert entry.file_path == "notes/bad.md"
+        assert entry.file_path == Path("notes/bad.md")
         assert entry.frontmatter is None
         assert entry.status == "illegal"
         assert entry.error == "no_frontmatter"
 
     def test_immutability(self) -> None:
         entry = FileEntry(
-            file_path="test.md",
+            file_path=Path("test.md"),
             frontmatter={"title": "Test"},
             status="ok",
             error=None,
@@ -45,7 +47,7 @@ class TestFileEntry:
 
     def test_not_hashable_with_dict(self) -> None:
         entry = FileEntry(
-            file_path="test.md",
+            file_path=Path("test.md"),
             frontmatter={"title": "Test"},
             status="ok",
             error=None,
@@ -58,7 +60,7 @@ class TestFileEntry:
 
     def test_hashable_with_none_frontmatter(self) -> None:
         entry = FileEntry(
-            file_path="test.md",
+            file_path=Path("test.md"),
             frontmatter=None,
             status="illegal",
             error="no_frontmatter",
@@ -72,7 +74,7 @@ class TestScanMetadata:
 
     def test_create_metadata(self) -> None:
         metadata = ScanMetadata(
-            root="/path/to/dir",
+            root=Path("/path/to/dir"),
             total_files=10,
             files_with_frontmatter=8,
             files_without_frontmatter=1,
@@ -81,7 +83,7 @@ class TestScanMetadata:
             avg_duration_per_file_ms=150.0,
             throughput_files_per_second=6.7,
         )
-        assert metadata.root == "/path/to/dir"
+        assert metadata.root == Path("/path/to/dir")
         assert metadata.total_files == 10
         assert metadata.files_with_frontmatter == 8
         assert metadata.files_without_frontmatter == 1
@@ -92,7 +94,7 @@ class TestScanMetadata:
 
     def test_immutability(self) -> None:
         metadata = ScanMetadata(
-            root="/path",
+            root=Path("/path"),
             total_files=0,
             files_with_frontmatter=0,
             files_without_frontmatter=0,
@@ -113,7 +115,7 @@ class TestScanResults:
 
     def test_create_result(self) -> None:
         metadata = ScanMetadata(
-            root="/path",
+            root=Path("/path"),
             total_files=1,
             files_with_frontmatter=1,
             files_without_frontmatter=0,
@@ -123,7 +125,7 @@ class TestScanResults:
             throughput_files_per_second=10.0,
         )
         entry = FileEntry(
-            file_path="test.md",
+            file_path=Path("test.md"),
             frontmatter={"title": "Test"},
             status="ok",
             error=None,
@@ -135,7 +137,7 @@ class TestScanResults:
 
     def test_aggregated_result_immutability(self) -> None:
         metadata = ScanMetadata(
-            root="/path",
+            root=Path("/path"),
             total_files=0,
             files_with_frontmatter=0,
             files_without_frontmatter=0,

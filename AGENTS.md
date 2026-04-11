@@ -10,16 +10,22 @@ matterify/
 ├── AGENTS.md, README.md, LICENSE             # Docs & Guidelines
 ├── src/matterify/                            # Source (src-layout)
 │   ├── __init__.py                           # Metadata + public API entry points
-│   ├── extractor.py                          # Frontmatter extraction & aggregation logic
+│   ├── constants.py                          # Default exclude patterns, n_procs
+│   ├── core.py                               # Orchestration: scan_directory, _worker_extract
+│   ├── enums.py                              # FileStatus, FileError enums
+│   ├── hasher.py                             # SHA-256 file hashing
 │   ├── models.py                             # Frozen dataclasses (FileEntry, ScanMetadata, ScanResults)
-│   ├── scanner.py                           # Directory traversal with glob-based exclusion filtering
+│   ├── parser.py                             # YAML frontmatter extraction
+│   ├── scanner.py                            # Directory traversal with glob-based exclusion filtering
 │   ├── cli.py                                # Click CLI entry point
 │   ├── logging.py                            # Debug & console config
-│   └── utils/                                # Utility modules
+│   └── types.py                              # Type aliases (ContentCallback)
 ├── tests/                                    # Pytest suite
 │   ├── conftest.py                           # Fixtures
-│   ├── test_extractor.py, test_utils.py      # Unit tests
-│   └── test_cli.py                           # CLI tests
+│   ├── test_core.py, test_parser.py          # Unit tests
+│   ├── test_models.py, test_scanner.py       # Unit tests
+│   ├── test_cli.py                           # CLI tests
+│   └── test_utils.py                        # Utility tests
 └── docs/                                     # MkDocs source
 ```
 
@@ -51,7 +57,7 @@ matterify/
 
 ### Tests (`uv run pytest`)
 - **Exec:** `.` (all), `-v` (verbose), `tests/[file].py[::func]` (targeted), `--cov=matterify --cov-report=html` (coverage).
-- **Structure:** `tests/` dir 1:1 mapping (`extractor.py`->`test_extractor.py`, `utils/__init__.py`->`test_utils.py`, `cli.py`->`test_cli.py`).
+- **Structure:** `tests/` dir 1:1 mapping (`core.py`->`test_core.py`, `parser.py`->`test_parser.py`, `models.py`->`test_models.py`, `scanner.py`->`test_scanner.py`, `cli.py`->`test_cli.py`).
 - **FS Rules:** Prioritize critical paths. Use `tmp_path`. Name staging dirs `project/` (avoids `src/src/` nesting).
 - **Paths:** Stored paths include top-level prefix (`project/src/main.py`). Assert via `endswith()` or `rglob()`.
 - **Public API only:** Never import or call private symbols (names starting with `_`) from `src/` in tests. Test behaviour exclusively through the public API.
@@ -131,8 +137,9 @@ Where `ScanMetadata` contains:
 - `ScanResults`: Dataclass holding metadata and file entries.
 
 ### Status Values
-- `ok`: File successfully parsed with valid YAML frontmatter.
-- `illegal`: File has issues (no frontmatter, invalid YAML, or parse errors).
+- `FileStatus.OK`: File successfully parsed with valid YAML frontmatter.
+- `FileStatus.ILLEGAL`: File has issues (no frontmatter, invalid YAML, or parse errors).
+- `FileError`: Error code enum (`NO_FRONTMATTER`, `YAML_PARSE_ERROR`, `NON_DICT_FRONTMATTER`, `DECODE_ERROR`).
 
 ## CLI
 
@@ -171,26 +178,29 @@ matterify DIRECTORY [OPTIONS]
 ## Architecture & Mechanisms
 
 ### Module Overview
-- `extractor.py`: Core extraction logic - parsing YAML frontmatter, parallel processing with `ProcessPoolExecutor`, JSON export.
+- `core.py`: Orchestration - `scan_directory()` and `_worker_extract()` for parallel processing with `ProcessPoolExecutor`.
+- `parser.py`: YAML frontmatter extraction - `_extract_frontmatter_from_content()` parses `---` delimiters and `yaml.safe_load()`.
+- `hasher.py`: SHA-256 file hashing - `_compute_file_hash()`.
 - `scanner.py`: Directory traversal with glob-based exclusion filtering using `Path.walk()`.
 - `models.py`: Frozen dataclasses for type-safe data structures.
+- `enums.py`: `FileStatus` and `FileError` enums for type-safe status handling.
+- `types.py`: Type alias for `ContentCallback`.
 - `logging.py`: `structlog` configuration and `rich.Console` factory.
 - `cli.py`: Click-based CLI entry point.
 
 ### Extraction Pipeline
 1. `iter_markdown_files()` discovers all `.md`/`.markdown` files, respecting exclusions.
 2. `scan_directory()` distributes files across `ProcessPoolExecutor` workers.
-3. Each worker runs `extract_frontmatter()` which:
-   - Reads file content as UTF-8
-   - Checks for `---` delimiters
-   - Parses YAML block with `yaml.safe_load`
-   - Validates frontmatter is a dictionary
-   - Serializes `datetime`/`date` objects to ISO strings
+3. Each worker runs `_worker_extract()` which:
+   - Optionally computes file stats via `os.stat()`
+   - Optionally computes SHA-256 hash
+   - Optionally extracts frontmatter via `parser._extract_frontmatter_from_content()`
+   - Optionally runs callback with file content
 4. Results are sorted, deduplicated relative to root, and aggregated.
 
 ### File Status Classification
-- `ok`: Valid YAML frontmatter found and parsed.
-- `illegal`: No frontmatter, invalid YAML, or parse error.
+- `FileStatus.OK`: Valid YAML frontmatter found and parsed.
+- `FileStatus.ILLEGAL`: No frontmatter, invalid YAML, or parse error.
 
 ## Docstring Rules
 - **Format:** Google Style (`Args:`, `Returns:`, `Raises:`).

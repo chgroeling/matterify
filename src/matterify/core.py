@@ -1,93 +1,24 @@
 """Frontmatter extraction and aggregation logic."""
 
-import hashlib
 import os
 import time
-from collections.abc import Callable
 from concurrent.futures import ProcessPoolExecutor, as_completed
-from datetime import date, datetime
+from datetime import datetime
 from pathlib import Path
-from typing import cast
 
-import yaml
 from structlog import get_logger
 
 from matterify.constants import DEFAULT_EXCLUDE_PATTERNS, DEFAULT_N_PROCS
+from matterify.enums import FileError, FileStatus
+from matterify.hasher import _compute_file_hash
 from matterify.models import FileEntry, FileStats, ScanMetadata, ScanResults
+from matterify.parser import _extract_frontmatter_from_content
 from matterify.scanner import iter_markdown_files
+from matterify.types import ContentCallback
 
 logger = get_logger(__name__)
 
 __all__ = ["scan_directory"]
-
-type ContentCallback = Callable[[str], object | None]
-
-
-def _serialize_datetime(
-    value: dict[str, object] | list[object] | object,
-) -> dict[str, object] | list[object] | object:
-    """Recursively convert datetime/date objects to ISO strings."""
-    if isinstance(value, datetime):
-        return value.isoformat()
-    if isinstance(value, date):
-        return value.isoformat()
-    if isinstance(value, dict):
-        return {k: _serialize_datetime(v) for k, v in value.items()}
-    if isinstance(value, list):
-        return [_serialize_datetime(item) for item in value]
-    return value
-
-
-def _extract_frontmatter_from_content(
-    content: str,
-    file_path: Path,
-) -> tuple[Path, dict[str, object] | None, str, str | None]:
-    """Extract and validate YAML frontmatter from file content.
-
-    Args:
-        content: The file content as a string.
-        file_path: The file path for the entry.
-
-    Returns:
-        Tuple of (file_path, frontmatter, status, error).
-    """
-    content = content.strip()
-
-    if not content.startswith("---"):
-        return (file_path, None, "illegal", "no_frontmatter")
-
-    parts = content.split("---", 2)
-    if len(parts) < 3:
-        return (file_path, None, "illegal", "no_frontmatter")
-
-    yaml_block = parts[1]
-    try:
-        data = yaml.safe_load(yaml_block)
-    except yaml.YAMLError:
-        return (file_path, None, "illegal", "yaml_parse_error")
-
-    if not isinstance(data, dict):
-        return (file_path, None, "illegal", "non_dict_frontmatter")
-
-    data = _serialize_datetime(data)
-    serialized = cast("dict[str, object] | None", data)
-
-    return (file_path, serialized, "ok", None)
-
-
-def _compute_file_hash(content: bytes) -> str | None:
-    """Compute SHA-256 hash of file content.
-
-    Args:
-        content: The file content as bytes.
-
-    Returns:
-        Hex string of SHA-256 hash, or None on error.
-    """
-    try:
-        return hashlib.sha256(content).hexdigest()
-    except OSError:
-        return None
 
 
 def _worker_extract(
@@ -120,8 +51,8 @@ def _worker_extract(
     file_hash: str | None = None
     frontmatter: dict[str, object] | None = None
     custom_data: object | None = None
-    status: str
-    error: str | None
+    status: FileStatus
+    error: FileError | None
     fm_file_path = file_path
 
     if compute_stats:
@@ -138,23 +69,23 @@ def _worker_extract(
     if compute_frontmatter or compute_hash or callback is not None:
         try:
             raw_bytes = full_path.read_bytes()
-        except OSError as exc:
+        except OSError:
             return FileEntry(
                 file_path=file_path,
                 frontmatter=None,
-                status="illegal",
-                error=str(exc),
+                status=FileStatus.ILLEGAL,
+                error=FileError.DECODE_ERROR,
             )
 
         if compute_frontmatter or callback is not None:
             try:
                 content = raw_bytes.decode("utf-8")
-            except UnicodeDecodeError as exc:
+            except UnicodeDecodeError:
                 return FileEntry(
                     file_path=file_path,
                     frontmatter=None,
-                    status="illegal",
-                    error=f"decode_error: {exc}",
+                    status=FileStatus.ILLEGAL,
+                    error=FileError.DECODE_ERROR,
                 )
 
             if compute_frontmatter:
@@ -162,19 +93,19 @@ def _worker_extract(
                     content, file_path
                 )
             else:
-                status = "ok"
+                status = FileStatus.OK
                 error = None
 
             if callback is not None:
                 custom_data = callback(content)
         else:
-            status = "ok"
+            status = FileStatus.OK
             error = None
 
         if compute_hash:
             file_hash = _compute_file_hash(raw_bytes)
     else:
-        status = "ok"
+        status = FileStatus.OK
         error = None
 
     return FileEntry(
@@ -323,12 +254,16 @@ def scan_directory(
     if compute_frontmatter:
         files_with_fm = sum(1 for r in results if r.frontmatter is not None)
         files_without_fm = sum(
-            1 for r in results if r.status == "illegal" and r.error == "no_frontmatter"
+            1
+            for r in results
+            if r.status == FileStatus.ILLEGAL and r.error == FileError.NO_FRONTMATTER
         )
     else:
         files_with_fm = None
         files_without_fm = None
-    errors = sum(1 for r in results if r.status == "illegal" and r.error != "no_frontmatter")
+    errors = sum(
+        1 for r in results if r.status == FileStatus.ILLEGAL and r.error != FileError.NO_FRONTMATTER
+    )
 
     duration = time.perf_counter() - start_time
     avg_ms = (duration / total_files * 1000) if total_files > 0 else 0.0

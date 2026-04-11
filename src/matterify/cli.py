@@ -3,13 +3,14 @@
 import json as _json
 from dataclasses import asdict
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 import click
 from structlog import get_logger
 
 from matterify import __version__
-from matterify.extractor import scan_directory
+from matterify.core import scan_directory
+from matterify.enums import FileError, FileStatus
 from matterify.logging import configure_debug_logging, get_console
 
 if TYPE_CHECKING:
@@ -19,9 +20,11 @@ logger = get_logger(__name__)
 
 
 def _json_serializer(obj: object) -> str:
-    """Serialize Path objects to strings for JSON output."""
+    """Serialize Path and Enum objects to JSON-compatible values."""
     if isinstance(obj, Path):
         return str(obj)
+    if isinstance(obj, FileStatus | FileError):
+        return cast("str", obj.value)
     msg = f"Object of type {type(obj).__name__} is not JSON serializable"
     raise TypeError(msg)
 

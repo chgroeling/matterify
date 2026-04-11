@@ -3,6 +3,8 @@
 from dataclasses import dataclass
 from pathlib import Path
 
+from matterify.enums import FileError, FileStatus
+
 
 @dataclass(frozen=True)
 class FileStats:
@@ -26,8 +28,8 @@ class FileEntry:
     Attributes:
         file_path: Relative path to the scanned directory.
         frontmatter: Parsed YAML content as a dictionary.
-        status: Processing status - "ok" or "illegal".
-        error: Error description if status is "illegal".
+        status: Processing status - FileStatus.OK or FileStatus.ILLEGAL.
+        error: Error code if status is FileStatus.ILLEGAL.
         stats: File statistics (size and timestamps).
         file_hash: SHA-256 hash of file content, or None if not computed.
         custom_data: Custom data injected by callback function, or None if no callback provided.
@@ -35,8 +37,8 @@ class FileEntry:
 
     file_path: Path
     frontmatter: dict[str, object] | None
-    status: str
-    error: str | None
+    status: FileStatus
+    error: FileError | None
     stats: FileStats | None = None
     file_hash: str | None = None
     custom_data: object | None = None

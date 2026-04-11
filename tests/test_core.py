@@ -1,13 +1,10 @@
-"""Tests for the extractor module."""
+"""Tests for the core module."""
 
 from pathlib import Path
 
 from matterify import ScanResults
-from matterify.extractor import (
-    _extract_frontmatter_from_content,
-    _worker_extract,
-    scan_directory,
-)
+from matterify.core import _worker_extract, scan_directory
+from matterify.enums import FileError, FileStatus
 from matterify.models import FileEntry
 
 
@@ -17,148 +14,6 @@ def _count_lines_callback(content: str) -> object:
 
 def _return_none_callback(_content: str) -> object | None:
     return None
-
-
-class TestExtractFrontmatterFromContent:
-    """Tests for _extract_frontmatter_from_content."""
-
-    def test_extract_valid_frontmatter(
-        self,
-        sample_md_with_frontmatter: Path,
-    ) -> None:
-        content = sample_md_with_frontmatter.read_text(encoding="utf-8")
-        _, frontmatter, status, error = _extract_frontmatter_from_content(
-            content, str(sample_md_with_frontmatter)
-        )
-        assert status == "ok"
-        assert frontmatter is not None
-        assert frontmatter["title"] == "Test Document"
-        assert frontmatter["author"] == "Test Author"
-        assert frontmatter["tags"] == ["test", "example"]
-        assert error is None
-
-    def test_extract_no_frontmatter(
-        self,
-        sample_md_without_frontmatter: Path,
-    ) -> None:
-        content = sample_md_without_frontmatter.read_text(encoding="utf-8")
-        _, frontmatter, status, error = _extract_frontmatter_from_content(
-            content, str(sample_md_without_frontmatter)
-        )
-        assert status == "illegal"
-        assert error == "no_frontmatter"
-        assert frontmatter is None
-
-    def test_extract_invalid_frontmatter(self, tmp_path: Path) -> None:
-        file_path = tmp_path / "invalid.md"
-        file_path.write_text("---\ninvalid: yaml: broken\n---\n", encoding="utf-8")
-        content = file_path.read_text(encoding="utf-8")
-        _, frontmatter, status, error = _extract_frontmatter_from_content(content, str(file_path))
-        assert status == "illegal"
-        assert error == "yaml_parse_error"
-        assert frontmatter is None
-
-    def test_extract_non_dict_frontmatter(self, tmp_path: Path) -> None:
-        file_path = tmp_path / "non_dict.md"
-        file_path.write_text("---\n- item1\n- item2\n---\n", encoding="utf-8")
-        content = file_path.read_text(encoding="utf-8")
-        _, frontmatter, status, error = _extract_frontmatter_from_content(content, str(file_path))
-        assert status == "illegal"
-        assert error == "non_dict_frontmatter"
-        assert frontmatter is None
-
-    def test_extract_incomplete_delimiter(self, tmp_path: Path) -> None:
-        file_path = tmp_path / "incomplete.md"
-        file_path.write_text("---\ntitle: Test\n", encoding="utf-8")
-        content = file_path.read_text(encoding="utf-8")
-        _, frontmatter, status, error = _extract_frontmatter_from_content(content, str(file_path))
-        assert status == "illegal"
-        assert error == "no_frontmatter"
-        assert frontmatter is None
-
-    def test_returns_tuple(self, tmp_path: Path) -> None:
-        file_path = tmp_path / "test.md"
-        file_path.write_text("---\ntitle: Test\n---\nContent", encoding="utf-8")
-        content = file_path.read_text(encoding="utf-8")
-        result = _extract_frontmatter_from_content(content, str(file_path))
-        assert isinstance(result, tuple)
-        assert len(result) == 4
-
-    def test_extract_datetime_serialized_to_iso_string(self, tmp_path: Path) -> None:
-        file_path = tmp_path / "datetime.md"
-        file_path.write_text(
-            "---\ntitle: Test\ndate: 2024-03-15\ndatetime: 2024-03-15T10:30:00\n---\nContent",
-            encoding="utf-8",
-        )
-        content = file_path.read_text(encoding="utf-8")
-        _, frontmatter, status, _ = _extract_frontmatter_from_content(content, str(file_path))
-        assert status == "ok"
-        assert frontmatter is not None
-        assert frontmatter["date"] == "2024-03-15"
-        assert frontmatter["datetime"] == "2024-03-15T10:30:00"
-
-    def test_extract_nested_datetime_serialized(self, tmp_path: Path) -> None:
-        file_path = tmp_path / "nested.md"
-        content = (
-            "---\n"
-            "title: Test\n"
-            "metadata:\n"
-            "  created: 2024-01-01\n"
-            "  updated: 2024-06-15T14:00:00\n"
-            "---\n"
-            "Content"
-        )
-        file_path.write_text(content, encoding="utf-8")
-        result = _extract_frontmatter_from_content(content, str(file_path))
-        _, frontmatter, status, _ = result
-        assert status == "ok"
-        assert frontmatter is not None
-        assert frontmatter["metadata"]["created"] == "2024-01-01"
-        assert frontmatter["metadata"]["updated"] == "2024-06-15T14:00:00"
-
-    def test_extract_list_with_datetime_serialized(self, tmp_path: Path) -> None:
-        file_path = tmp_path / "list.md"
-        file_path.write_text(
-            "---\ntitle: Test\nevents:\n  - 2024-01-01\n  - 2024-02-15\n---\nContent",
-            encoding="utf-8",
-        )
-        content = file_path.read_text(encoding="utf-8")
-        _, frontmatter, status, _ = _extract_frontmatter_from_content(content, str(file_path))
-        assert status == "ok"
-        assert frontmatter is not None
-        assert frontmatter["events"] == ["2024-01-01", "2024-02-15"]
-
-    def test_extract_mixed_content_with_datetime(self, tmp_path: Path) -> None:
-        file_path = tmp_path / "mixed.md"
-        content = (
-            "---\n"
-            "title: Test\n"
-            "tags:\n"
-            "  - test\n"
-            "  - example\n"
-            "published: 2024-03-15\n"
-            "author: John Doe\n"
-            "---\n"
-            "Content"
-        )
-        file_path.write_text(content, encoding="utf-8")
-        _, frontmatter, status, _ = _extract_frontmatter_from_content(content, str(file_path))
-        assert status == "ok"
-        assert frontmatter is not None
-        assert frontmatter["title"] == "Test"
-        assert frontmatter["tags"] == ["test", "example"]
-        assert frontmatter["published"] == "2024-03-15"
-        assert frontmatter["author"] == "John Doe"
-
-    def test_extract_returns_tuple_elements(self, tmp_path: Path) -> None:
-        file_path = tmp_path / "test.md"
-        file_path.write_text("---\ntitle: Test\n---\nContent", encoding="utf-8")
-        content = file_path.read_text(encoding="utf-8")
-        result = _extract_frontmatter_from_content(content, str(file_path))
-        assert isinstance(result[0], str)
-        assert isinstance(result[1], dict | None)
-        assert isinstance(result[2], str)
-        assert result[3] is None or isinstance(result[3], str)
 
 
 class TestWorkerExtract:
@@ -216,7 +71,7 @@ class TestWorkerExtract:
             compute_stats=False,
             compute_frontmatter=False,
         )
-        assert result.status == "ok"
+        assert result.status == FileStatus.OK
         assert result.frontmatter is None
         assert result.error is None
 
@@ -228,8 +83,22 @@ class TestWorkerExtract:
             compute_stats=False,
             compute_frontmatter=True,
         )
-        assert result.status == "illegal"
+        assert result.status == FileStatus.ILLEGAL
         assert result.error is not None
+
+    def test_worker_callback(self, tmp_path: Path) -> None:
+        file_path = tmp_path / "test.md"
+        file_path.write_text("---\ntitle: Test\n---\nLine1\nLine2\n", encoding="utf-8")
+        result = _worker_extract(
+            tmp_path,
+            file_path,
+            compute_hash=True,
+            compute_stats=True,
+            compute_frontmatter=True,
+            callback=_count_lines_callback,
+        )
+        assert result.custom_data is not None
+        assert result.custom_data["line_count"] == 5
 
 
 class TestScanDirectory:
@@ -286,9 +155,9 @@ class TestScanDirectory:
         assert result.metadata.files_with_frontmatter == 1
         assert result.metadata.errors == 1
         assert result.metadata.files_without_frontmatter == 0
-        illegal = [e for e in result.files if e.status == "illegal"]
+        illegal = [e for e in result.files if e.status == FileStatus.ILLEGAL]
         assert len(illegal) == 1
-        assert illegal[0].error == "non_dict_frontmatter"
+        assert illegal[0].error == FileError.NON_DICT_FRONTMATTER
 
     def test_aggregate_respects_blacklist(self, tmp_path: Path) -> None:
         project = tmp_path / "project"
@@ -346,7 +215,7 @@ class TestScanDirectory:
         project.mkdir()
         (project / "test.md").write_text("---\ntitle: Test\n---\nContent", encoding="utf-8")
         result = scan_directory(project, compute_frontmatter=False)
-        assert result.files[0].status == "ok"
+        assert result.files[0].status == FileStatus.OK
         assert result.files[0].frontmatter is None
         assert result.files[0].error is None
         assert result.metadata.files_with_frontmatter is None
@@ -357,7 +226,7 @@ class TestScanDirectory:
         project.mkdir()
         (project / "test.md").write_text("---\ntitle: Test\n---\nContent", encoding="utf-8")
         result = scan_directory(project, compute_stats=False, compute_frontmatter=False)
-        assert result.files[0].status == "ok"
+        assert result.files[0].status == FileStatus.OK
         assert result.files[0].frontmatter is None
         assert result.files[0].error is None
         assert result.files[0].stats is None
@@ -436,26 +305,12 @@ class TestCallback:
             assert entry.custom_data is not None
             assert "line_count" in entry.custom_data
 
-    def test_worker_callback(self, tmp_path: Path) -> None:
-        file_path = tmp_path / "test.md"
-        file_path.write_text("---\ntitle: Test\n---\nLine1\nLine2\n", encoding="utf-8")
-        result = _worker_extract(
-            tmp_path,
-            file_path,
-            compute_hash=True,
-            compute_stats=True,
-            compute_frontmatter=True,
-            callback=_count_lines_callback,
-        )
-        assert result.custom_data is not None
-        assert result.custom_data["line_count"] == 5
-
     def test_callback_without_frontmatter(self, tmp_path: Path) -> None:
         project = tmp_path / "project"
         project.mkdir()
         (project / "test.md").write_text("---\ntitle: Test\n---\nContent", encoding="utf-8")
         result = scan_directory(project, compute_frontmatter=False, callback=_count_lines_callback)
-        assert result.files[0].status == "ok"
+        assert result.files[0].status == FileStatus.OK
         assert result.files[0].frontmatter is None
         assert result.files[0].custom_data is not None
         assert result.files[0].custom_data["line_count"] == 4

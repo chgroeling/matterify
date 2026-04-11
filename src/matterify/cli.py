@@ -51,6 +51,7 @@ def _json_serializer(obj: object) -> str:
     "--exclude",
     "-e",
     multiple=True,
+    metavar="GLOB",
     help="Glob patterns to exclude from scanning (e.g., '**/.git' or '**/__pycache__').",
 )
 @click.option(

@@ -12,7 +12,7 @@ matterify/
 │   ├── __init__.py                           # Metadata + public API entry points
 │   ├── extractor.py                          # Frontmatter extraction & aggregation logic
 │   ├── models.py                             # Frozen dataclasses (FileEntry, ScanMetadata, ScanResults)
-│   ├── scanner.py                           # Directory traversal with exclude filtering
+│   ├── scanner.py                           # Directory traversal with glob-based exclusion filtering
 │   ├── cli.py                                # Click CLI entry point
 │   ├── logging.py                            # Debug & console config
 │   └── utils/                                # Utility modules
@@ -149,7 +149,7 @@ matterify DIRECTORY [OPTIONS]
 - `--output`, `-o`: Write JSON to file instead of stdout (if omitted, outputs to stdout).
 - `--n-procs`: Worker process count (default: auto-detect CPU cores).
 - `--verbose`, `-v`: Show progress and summary.
-- `--exclude`, `-e`: Additional directories to exclude.
+- `--exclude`, `-e`: Glob patterns to exclude (e.g., `**/.git`, `**/__pycache__`).
 - `--debug`: Enable debug logging.
 - `--version`: Show version information.
 
@@ -172,7 +172,7 @@ matterify DIRECTORY [OPTIONS]
 
 ### Module Overview
 - `extractor.py`: Core extraction logic - parsing YAML frontmatter, parallel processing with `ProcessPoolExecutor`, JSON export.
-- `scanner.py`: Directory traversal with exclude filtering using `Path.walk()`.
+- `scanner.py`: Directory traversal with glob-based exclusion filtering using `Path.walk()`.
 - `models.py`: Frozen dataclasses for type-safe data structures.
 - `logging.py`: `structlog` configuration and `rich.Console` factory.
 - `cli.py`: Click-based CLI entry point.

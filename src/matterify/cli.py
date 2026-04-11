@@ -40,7 +40,7 @@ logger = get_logger(__name__)
     "--exclude",
     "-e",
     multiple=True,
-    help="Directories to exclude from scanning.",
+    help="Glob patterns to exclude from scanning (e.g., '**/.git' or '**/__pycache__').",
 )
 @click.option(
     "--include",

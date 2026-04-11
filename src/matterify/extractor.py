@@ -12,7 +12,7 @@ from typing import cast
 import yaml
 from structlog import get_logger
 
-from matterify.constants import BLACKLIST, DEFAULT_N_PROCS
+from matterify.constants import DEFAULT_EXCLUDE_PATTERNS, DEFAULT_N_PROCS
 from matterify.models import FileEntry, FileStats, ScanMetadata, ScanResults
 from matterify.scanner import iter_markdown_files
 
@@ -223,7 +223,7 @@ def scan_directory(
     start_time = time.perf_counter()
     resolved_root = root.resolve()
 
-    effective_exclude = exclude if exclude is not None else BLACKLIST
+    effective_exclude = exclude if exclude is not None else DEFAULT_EXCLUDE_PATTERNS
     effective_n_procs = n_procs if n_procs is not None else os.cpu_count()
     effective_n_procs = effective_n_procs if effective_n_procs is not None else DEFAULT_N_PROCS
 

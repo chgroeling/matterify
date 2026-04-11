@@ -46,7 +46,7 @@ matterify DIRECTORY [OPTIONS]
 - `-o, --output PATH` - Write JSON to file instead of stdout (if omitted, outputs to stdout)
 - `--n-procs INT` - Worker process count (default: auto-detect CPU cores)
 - `-v, --verbose` - Show progress and summary
-- `-e, --exclude TEXT` - Additional directories to exclude
+- `-e, --exclude TEXT` - Glob patterns to exclude (e.g., `**/.git`, `**/__pycache__`)
 - `-i, --include PATH` - Additional file paths to include in scan (repeatable)
 - `--hash / --no-hash` - Enable/disable SHA-256 hash computation
 - `--stats / --no-stats` - Enable/disable file statistics (size, modified time, access time)
@@ -74,8 +74,8 @@ matterify ./docs --no-hash --no-stats
 # Hash + stats only (skip YAML parsing)
 matterify ./docs --no-frontmatter
 
-# Exclude additional directories
-matterify ./docs -e build -e .cache
+# Exclude directories using glob patterns
+matterify ./docs -e '**/build' -e '**/.cache'
 
 # Include additional files (any extension)
 matterify ./docs -i notes.txt -i ../shared/changelog.txt
@@ -204,19 +204,19 @@ When using CLI (stdout or `--output`), the payload has this shape:
 
 ## Default Exclusions
 
-The following directories are excluded from scanning by default:
+The following glob patterns are excluded from scanning by default:
 
-- `.git`
-- `.obsidian`
-- `__pycache__`
-- `.venv`
-- `venv`
-- `node_modules`
-- `.mypy_cache`
-- `.pytest_cache`
-- `.ruff_cache`
+- `**/.git` - Git repositories
+- `**/.obsidian` - Obsidian vault settings
+- `**/__pycache__` - Python bytecode cache
+- `**/.venv` - Python virtual environments
+- `**/venv` - Python virtual environments
+- `**/node_modules` - Node.js dependencies
+- `**/.mypy_cache` - MyPy type checker cache
+- `**/.pytest_cache` - Pytest cache
+- `**/.ruff_cache` - Ruff linter cache
 
-Use `-e` or `--exclude` to add custom exclusions.
+The `**/` prefix matches directories at any depth. Use `-e` or `--exclude` to add custom exclusion patterns.
 
 ## Development
 

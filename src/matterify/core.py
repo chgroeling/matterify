@@ -4,6 +4,7 @@ import os
 import time
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from datetime import datetime
+from operator import attrgetter
 from pathlib import Path
 
 from structlog import get_logger
@@ -158,7 +159,6 @@ def scan_directory(
         {'title': 'Getting Started', 'version': '1.0.0'}
         ```
     """
-
     start_time = time.perf_counter()
     resolved_root = root.resolve()
 
@@ -176,8 +176,7 @@ def scan_directory(
     file_path_map: dict[Path, Path] = {}
 
     for rel_path in iter_markdown_files(root, exclude=effective_exclude):
-        resolved_path = (resolved_root / rel_path).resolve()
-        file_path_map[resolved_path] = rel_path
+        file_path_map[resolved_root / rel_path] = rel_path
 
     if include_files is not None:
         for include_path in include_files:
@@ -209,8 +208,7 @@ def scan_directory(
             avg_duration_per_file_ms=0.0,
             throughput_files_per_second=0.0,
         )
-        result = ScanResults(metadata=metadata, files=[])
-        return result
+        return ScanResults(metadata=metadata, files=[])
 
     if not compute_frontmatter and not compute_hash and not compute_stats:
         duration = time.perf_counter() - start_time
@@ -224,46 +222,55 @@ def scan_directory(
             avg_duration_per_file_ms=0.0,
             throughput_files_per_second=0.0,
         )
-        result = ScanResults(metadata=metadata, files=[])
-        return result
+        return ScanResults(metadata=metadata, files=[])
 
     max_workers = min(total_files, effective_n_procs)
     logger.debug("worker_pool_initialized", max_workers=max_workers)
 
-    results: list[FileEntry] = []
-
     with ProcessPoolExecutor(max_workers=max_workers) as executor:
-        future_to_path = {
-            executor.submit(
-                _worker_extract,
-                resolved_root,
-                fp,
-                compute_hash,
-                compute_stats,
-                compute_frontmatter,
-                callback,
-            ): fp
-            for fp in file_paths
-        }
-        for future in as_completed(future_to_path):
-            entry = future.result()
-            results.append(entry)
+        results: list[FileEntry] = [
+            future.result()
+            for future in as_completed(
+                {
+                    executor.submit(
+                        _worker_extract,
+                        resolved_root,
+                        fp,
+                        compute_hash,
+                        compute_stats,
+                        compute_frontmatter,
+                        callback,
+                    ): fp
+                    for fp in file_paths
+                }
+            )
+        ]
 
-    results.sort(key=lambda e: e.file_path)
+    results.sort(key=attrgetter("file_path"))
 
+    files_with_fm: int | None
+    files_without_fm: int | None
+    errors: int
     if compute_frontmatter:
-        files_with_fm = sum(1 for r in results if r.frontmatter is not None)
-        files_without_fm = sum(
-            1
-            for r in results
-            if r.status == FileStatus.ILLEGAL and r.error == FileError.NO_FRONTMATTER
-        )
+        files_with_fm = 0
+        files_without_fm = 0
+        errors = 0
+        for r in results:
+            if r.status == FileStatus.ILLEGAL:
+                if r.error == FileError.NO_FRONTMATTER:
+                    files_without_fm += 1
+                else:
+                    errors += 1
+            elif r.frontmatter is not None:
+                files_with_fm += 1
     else:
         files_with_fm = None
         files_without_fm = None
-    errors = sum(
-        1 for r in results if r.status == FileStatus.ILLEGAL and r.error != FileError.NO_FRONTMATTER
-    )
+        errors = sum(
+            1
+            for r in results
+            if r.status == FileStatus.ILLEGAL and r.error != FileError.NO_FRONTMATTER
+        )
 
     duration = time.perf_counter() - start_time
     avg_ms = (duration / total_files * 1000) if total_files > 0 else 0.0
@@ -290,6 +297,4 @@ def scan_directory(
         throughput=round(throughput, 1),
     )
 
-    result = ScanResults(metadata=metadata, files=results)
-
-    return result
+    return ScanResults(metadata=metadata, files=results)

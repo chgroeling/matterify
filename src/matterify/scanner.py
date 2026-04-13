@@ -1,5 +1,7 @@
 """Directory traversal with glob-based exclusion filtering."""
 
+import fnmatch
+import re
 from collections.abc import Iterable
 from pathlib import Path
 
@@ -12,9 +14,18 @@ logger = get_logger(__name__)
 _MARKDOWN_SUFFIXES = {".md", ".markdown"}
 
 
-def _matches_any_pattern(path: Path, patterns: tuple[str, ...]) -> bool:
-    """Check if path matches any of the glob patterns."""
-    return any(path.match(pat) for pat in patterns)
+class _GlobMatcher:
+    """Pre-compiled glob matcher for efficient pattern matching."""
+
+    __slots__ = ("_regex",)
+
+    def __init__(self, patterns: tuple[str, ...]) -> None:
+        self._regex = re.compile(
+            "|".join(fnmatch.translate(p) for p in patterns),
+        )
+
+    def matches(self, path: Path) -> bool:
+        return self._regex.match(path.as_posix()) is not None
 
 
 def iter_markdown_files(
@@ -36,12 +47,14 @@ def iter_markdown_files(
     logger.debug("starting_directory_traversal", root=str(root), exclude=exclude)
 
     discovered_count = 0
+    dir_matcher = _GlobMatcher(exclude)
+    file_matcher = _GlobMatcher(exclude)
 
     for dirpath, dirnames, filenames in root.walk():
-        dirnames[:] = [d for d in dirnames if not _matches_any_pattern(dirpath / d, exclude)]
+        dirnames[:] = [d for d in dirnames if not dir_matcher.matches(dirpath / d)]
         for filename in filenames:
             filepath = dirpath / filename
-            if _matches_any_pattern(filepath, exclude):
+            if file_matcher.matches(filepath):
                 continue
             suffix = Path(filename).suffix.lower()
             if suffix in _MARKDOWN_SUFFIXES:
